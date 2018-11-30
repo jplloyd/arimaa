@@ -1,0 +1,10 @@
+An unofficial - personal implementation of the arimaa game as a two-player online browser-based game
+containing such amazing features as:
+
+* Visual indication of frozen pieces - dangerous moves (moves involving sacrifice or deliberately freezing a pieces), etc.
+* Visual indication of number of steps remaining in the move.
+* Prevention of illegal moves
+* Nice animations of moves
+* Server side verification of moves (whether legal, and who made the move)
+* Minimal server side state
+* Game log - who moved which pieces where and in what order.

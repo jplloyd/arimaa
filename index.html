@@ -1,0 +1,57 @@
+<meta http-equiv="content-type" content="text/html" charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<html>
+    <head>
+        <title>Arimaa</title>
+        <link rel=stylesheet type="text/css" href="style.css" />
+	<script src="src/arimaa.js"></script>
+	<script src="vue@2.4.2.js"></script>
+	<script type="text/javascript">
+
+	  board = []
+
+	  var i;
+	  for(i = 0; i < 64; i++)
+			 {
+			 //var j;
+			 //some_array.push([])
+			 //for(j = 0; j< 5; j++){
+				       board.push({str : "string number " + i, num : i})
+			//	       }
+			 }
+	  
+	  thefunction = function(){
+
+	  vm = new Vue({
+	  el: "#main",
+					 data: {
+					 slogan: "The game of the aegis",
+					 board : board,
+					 moves_remaining: 4,
+					 turn: "white"
+					 }
+	  })
+	  
+	  }
+	</script>
+    </head>
+    <body onload="thefunction()">
+        <div id="main">
+          <h1>Arimaa - {{slogan}}</h1>
+	  <div>
+	    Turn: it is {{turn}}'s turn<br/>
+	    Moves remaining: {{moves_remaining}}
+	    <h2>Board</h2>
+	    <table style="border: 1px black solid; margin: 0px; padding: 0px; border-collapse: collapse; text-align:center; height: 100vh; width: 100vh;">
+	      <tr v-for="i in 8" style="padding: 0px;margin:0px">
+		<td v-for="j in 8" style="border: 1px solid black; margin: 0px; padding: 0px;" >{{Math.pow((i-1) * 8 + (j-1),1)}}</td>
+	      <tr/>
+	    </template>
+	    </table>
+	  </div>
+	  <div>
+	    <h2>Log</h2>
+	  </div>
+        </div>
+    </body>
+</html>
