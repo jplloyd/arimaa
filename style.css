@@ -1,3 +1,130 @@
+/* Board basics */
+
+body
+{
+    margin:0px;
+    padding:0px;
+    max-width:100%;
+}
+
+.board
+{
+    margin:0px;
+    padding:0px;
+    background-color: #331717;
+}
+
+@media all and (orientation: landscape)
+{
+    .board
+    {
+	height: 90vh;
+	width: 90vh;
+	margin:auto;
+    }
+}
+
+@media all and (orientation: portrait)
+{
+    .board
+    {
+	height: 100vw;
+	width: 100vw;
+	max-width:100%;
+    }
+
+    .marking
+    {
+	font-size: 3vw;
+    }
+    
+}
+
+.innerboard
+{
+    position:relative;
+    height:86%;
+    width:86%;
+    left:7%;
+    top:7%;
+}
+
+.piece
+{
+    background-size: 90%;
+    background-position:center;
+    background-repeat:no-repeat;
+}
+
+.piece_hover
+{
+    border: 2px solid white;
+    margin-top:-2px;
+    margin-left:-2px;
+}
+
+.marking
+{
+    color: #c28359;
+    text-align: center;
+    display: table;
+    font-family: sans-serif;
+    position:absolute;
+}
+
+.marking span
+{
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.lettering
+{
+    width:12.5%;
+    height:8.1395%;
+}
+
+.numbering
+{
+    width:8.1395%;
+    height:12.5%;
+}
+
+.numbering span
+{
+    display:table-cell;
+    vertical-align:middle;
+}
+
+/* Indicators*/
+
+.outlined
+{
+    border: 2px solid white;
+}
+
+/* Squares */
+
+.black
+{
+    background-color: #8a5050;
+}
+
+.white
+{
+    background-color: #c28359;
+}
+
+.square
+{
+    position:absolute;
+    width:12.5%;
+    height:12.5%;
+    /* border: 1px #00f dotted; */
+}
+
+/* Pieces */
+
 .rabbit_w
 {
     background-image: url(img/p_rabbit_white.png)
@@ -50,10 +177,10 @@
 
 .elephant_w
 {
-    background-image: url(img/p_camel_white.png)
+    background-image: url(img/p_elephant_white.png)
 }
 
 .elephant_b
 {
-    background-image: url(img/p_camel_black.png)
+    background-image: url(img/p_elephant_black.png)
 }
