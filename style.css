@@ -18,9 +18,14 @@ body
 {
     .board
     {
-	height: 90vh;
-	width: 90vh;
+	height: 100vh;
+	width: 100vh;
 	margin:auto;
+    }
+    
+    .marking
+    {
+	font-size: 3vh;
     }
 }
 
@@ -47,6 +52,9 @@ body
     width:86%;
     left:7%;
     top:7%;
+    background-position:center;
+    background-size: 100%;
+    background-image:url(img/board.svg)
 }
 
 .piece
@@ -56,9 +64,9 @@ body
     background-repeat:no-repeat;
 }
 
-.piece_hover
+.marked
 {
-    border: 2px solid white;
+    border: 2px solid #ececec;
     margin-top:-2px;
     margin-left:-2px;
 }
@@ -113,6 +121,7 @@ body
 .white
 {
     background-color: #c28359;
+    fill:  #c28359;
 }
 
 .square
