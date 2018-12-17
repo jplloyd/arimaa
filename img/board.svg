@@ -12,17 +12,20 @@
       <rect id="t_outer" rx="5" ry="5" width="64" height="64" transform="rotate(45 32 32)"/>
       <rect id="t_inner" rx="5" ry="5" width="48" height="48" x="8" y="8"/>
       <circle id="dot" r="6" cx="32" cy="32" />
+      <ellipse id="sss" rx="16" ry="8" cx="-2" cy="0" />
+      <path id="ss" d="M 0 -32 Q 0 -16 8 0 Q 0 16 0 32 L -16 0 z"
+	    transform="scale(1 0.5)"/>
+      <g id="trapmarkers">
+	<use xlink:href="#ss" transform="translate(0 32)" />
+	<use xlink:href="#ss" transform="rotate(180) translate(-64 -32)" />
+	<use xlink:href="#ss" transform="rotate(90) translate(0 -32)" />
+	<use xlink:href="#ss" transform="rotate(-90) translate(-64 32)" />
+      </g>
       <g id="btrap">
-	<use class="white" xlink:href="#t_outer"/>
-	<use class="black" xlink:href="#t_inner"/>
-	<use class="black" xlink:href="#t_inner" transform="rotate(45 32 32)"/>
-	<use xlink:href="#dot" class="white"/>
+	<use xlink:href="#trapmarkers" class="black" />
       </g>
       <g id="wtrap">
-	<use class="black" xlink:href="#t_outer"/>
-	<use class="white" xlink:href="#t_inner"/>
-	<use class="white" xlink:href="#t_inner" transform="rotate(45 32 32)"/>
-	<use xlink:href="#dot" class="black"/>
+	<use xlink:href="#trapmarkers" class="white" />
       </g>
   </defs>
   <rect class="white" width="512" height="512"/>
