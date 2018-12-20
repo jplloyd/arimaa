@@ -14,34 +14,35 @@
 	</script>
     </head>
     <body onload="initiate_game()">
-        <div id="main" @click="active = undefined">
-	  <div>
-	    <div class="board">
-	      <div style="position:relative;" class="innerboard">
-		<template v-for="i in 16" >
-		  <div class="marking lettering" :style="letter_pos(i > 8, (i-1)%8)" ><span>{{board_letter((i-1)%8)}}<span></div>
-		</template>
-		<template v-for="i in 16">
-		  <div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
-		</template>
-		<!-- <table style="border-collapse: collapse; width:100%; height:100%; overflow: hidden"> -->
-		<!--   <tr v-for="i in 8" style="padding: 0px;margin:0px"> -->
-		<!--     <td v-bind:class="(i * 8 + j) % 2 == i % 2 ? 'black' : 'white'" v-for="j in 8" ></td> -->
-		<!--   <tr/> -->
-		<!-- </table> -->
-		<template v-for="i in board.live_pieces">
-		  <div class="square piece"
-		       :class="[piece_c(i), i.pos == active ? 'marked' : '']"
-		       :style="pos(i.pos.x, i.pos.y)"
-		       @click.stop="active = i.pos"
-		       ></div>
-		</template>
-		<template v-for="m in markers">
-		  <div class="square marked" :style="pos(m.x, m.y)" @click="dest_click(active, m)"></div>
-		</template>
+      <div id="main" @click="active = undefined">
+	<div id="info_board">{{status_msg}}</div>
+	<div class="board">
+	  <div style="position:relative;" class="innerboard">
+	    <template v-for="i in 16" >
+	      <div class="marking lettering" :style="letter_pos(i > 8, (i-1)%8)" ><span>{{board_letter((i-1)%8)}}<span></div>
+	    </template>
+	    <template v-for="i in 16">
+	      <div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
+	    </template>
+	    <!-- <table style="border-collapse: collapse; width:100%; height:100%; overflow: hidden"> -->
+	    <!--   <tr v-for="i in 8" style="padding: 0px;margin:0px"> -->
+	    <!--     <td v-bind:class="(i * 8 + j) % 2 == i % 2 ? 'black' : 'white'" v-for="j in 8" ></td> -->
+	    <!--   <tr/> -->
+	    <!-- </table> -->
+	    <template v-for="i in live_pieces">
+	      <div class="square piece"
+		   :class="[piece_c(i), i.pos == active ? 'marked' : '']"
+		   :style="pos(i.pos.x, i.pos.y)"
+		   @click.stop="active = i.pos">
 	      </div>
-	    </div>
+	    </template>
+	    <template v-for="m in markers">
+	      <div class="square clear" :style="pos(m.x, m.y)" @click="dest_click(active, m)"></div>
+	    </template>
 	  </div>
-        </div>
+	</div>
+	<button class="actionbutton" >Reset</button>
+	<button class="actionbutton" >End turn</button>
+      </div>
     </body>
 </html>

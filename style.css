@@ -5,6 +5,7 @@ body
     margin:0px;
     padding:0px;
     max-width:100%;
+    background-color:#160707;
 }
 
 .board
@@ -40,7 +41,7 @@ body
 
     .marking
     {
-	font-size: 3vw;
+	font-size: 2.2vw;
     }
     
 }
@@ -53,7 +54,7 @@ body
     left:7%;
     top:7%;
     background-position:center;
-    background-size: 100%;
+    background-size: cover;
     background-image:url(img/board.svg)
 }
 
@@ -78,6 +79,7 @@ body
     display: table;
     font-family: sans-serif;
     position:absolute;
+    user-select: none;
 }
 
 .marking span
@@ -104,11 +106,51 @@ body
     vertical-align:middle;
 }
 
+/* Controls*/
+
+.actionbutton
+{
+    background-color:#160707;
+    color: #c28359;
+    border: ridge 1px #c28359;
+    width:100%;
+    padding: 5px;
+    min-height:40px;
+    font-size:10pt;
+}
+
+.actionbutton:active
+{   
+    color:#160707;
+    background-color: #c28359;
+    border-style: inset;
+}
+
+#info_board
+{
+    font-family:sans-serif;
+    font-size: 10pt;
+    color: #c28359;
+    text-align:center;
+    padding:10px;
+}
+
 /* Indicators*/
 
 .outlined
 {
     border: 2px solid white;
+}
+
+.clear
+{
+    background-image: url("img/circle.svg");
+    background-size: cover;
+}
+
+.death
+{
+    background-image: url("img/altskull.svg");
 }
 
 /* Squares */
@@ -129,7 +171,6 @@ body
     position:absolute;
     width:12.5%;
     height:12.5%;
-    /* border: 1px #00f dotted; */
 }
 
 /* Pieces */
@@ -186,7 +227,7 @@ body
 
 .elephant_w
 {
-    background-image: url(img/p_elephant_white.png)
+    background-image: url(img/p_elephant_white.png);
 }
 
 .elephant_b
