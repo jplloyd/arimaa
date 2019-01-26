@@ -144,13 +144,19 @@ body
 
 .clear
 {
-    background-image: url("img/circle.svg");
+    background-image: url(img/circle.svg);
     background-size: cover;
 }
 
 .death
 {
-    background-image: url("img/altskull.svg");
+    background-image: url(img/altskull.svg);
+    background-size: cover;
+}
+
+.arrow
+{
+    background-image: url("img/arrow.svg");
 }
 
 /* Squares */
@@ -171,6 +177,13 @@ body
     position:absolute;
     width:12.5%;
     height:12.5%;
+}
+
+.pusher
+{
+    border: white 2px dotted;
+    margin-top: -2px;
+    margin-left: -2px;
 }
 
 /* Pieces */
@@ -233,4 +246,18 @@ body
 .elephant_b
 {
     background-image: url(img/p_elephant_black.png)
+}
+
+#side_choice
+{
+    background-color: #c28359;
+}
+
+.selection_box
+{
+    height:256px;
+    width:256px;
+    background-position:center;
+    background-size:cover;
+    display:inline-block;
 }

@@ -8,14 +8,22 @@
 	<script src="src/arimaa_gui.js"></script>
 	<script src="vue@2.4.2.js"></script>
 	<script type="text/javascript">
+	  
+	  
 	  let initiate_game = function(){
-	  vm = new Vue(ob);
+	    vm = new Vue(obfun(new Board()));
 	  }
 	</script>
     </head>
-    <body onload="initiate_game()">
-      <div id="main" @click="active = undefined">
-	<div id="info_board">{{status_msg}}</div>
+    <body onload="setup()">
+      <div id="main" @click="deactivate">
+	<div v-if="side_selection">
+	<div id="side_choice" :style="{display:'flex', justifyContent:'space-around'}">
+	  <div class="selection_box elephant_w"></div>
+	  <div class="selection_box elephant_b"></div>
+	</div>
+	  <button class="actionbutton">Confirm choice</button>	</div>
+	<div id="info_board">{{status_msg}} <template v-if="your_turn"> ~~ Moves made: {{moves_made}}</template></div>
 	<div class="board">
 	  <div style="position:relative;" class="innerboard">
 	    <template v-for="i in 16" >
@@ -24,25 +32,25 @@
 	    <template v-for="i in 16">
 	      <div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
 	    </template>
-	    <!-- <table style="border-collapse: collapse; width:100%; height:100%; overflow: hidden"> -->
-	    <!--   <tr v-for="i in 8" style="padding: 0px;margin:0px"> -->
-	    <!--     <td v-bind:class="(i * 8 + j) % 2 == i % 2 ? 'black' : 'white'" v-for="j in 8" ></td> -->
-	    <!--   <tr/> -->
-	    <!-- </table> -->
-	    <template v-for="i in live_pieces">
+	    <template v-for="i in board.pieces()">
 	      <div class="square piece"
-		   :class="[piece_c(i), i.pos == active ? 'marked' : '']"
-		   :style="pos(i.pos.x, i.pos.y)"
-		   @click.stop="active = i.pos">
+		   :class="[piece_c(i[1]), i[0].equals(active) || i[0].equals(pusher) ? 'marked' : '']"
+		   :style="pos(i[0].x, i[0].y)"
+		   @click.stop="orig_click(i[0])">
 	      </div>
 	    </template>
-	    <template v-for="m in markers">
-	      <div class="square clear" :style="pos(m.x, m.y)" @click="dest_click(active, m)"></div>
+	    <template v-for="m in markers_alt">
+	      <div class="square" :class="dest_class(m)" :style="pos(m[0].x, m[0].y)" @click.stop="dest_click(m)"></div>
 	    </template>
 	  </div>
 	</div>
-	<button class="actionbutton" >Reset</button>
-	<button class="actionbutton" >End turn</button>
+	<button v-if="moves_made > 0" class="actionbutton" @click="ts.undo()">Undo</button>
+	<button v-if="moves_made > 0" class="actionbutton" @click="ts.reset_turn()">Reset turn</button>
+	<br />
+	<br />
+	<br />
+	<br />
+	<button v-if="valid_turn" class="actionbutton" style="height:80px" @click="end_turn">End turn</button>
       </div>
     </body>
 </html>
