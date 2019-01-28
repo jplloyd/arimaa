@@ -168,6 +168,18 @@ body
 
 /* Squares */
 
+.white_history
+{
+    background-color: #8a5050;
+    color:#efefef;
+}
+
+.black_history
+{
+    background-color: #c28359;
+    color:101010;
+}
+
 .black
 {
     background-color: #8a5050;
@@ -176,7 +188,6 @@ body
 .white
 {
     background-color: #c28359;
-    fill:  #c28359;
 }
 
 .square

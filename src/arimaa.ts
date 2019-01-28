@@ -224,6 +224,11 @@ class Step
         return new Step(this.to, this.from)
     }
 
+    toString() : string
+    {
+        return this.from.toString() + " -> " + this.to.toString()
+    }
+
     describe(board : Board) : string
     {
         let s_f : Square = board.get_s(this.from)
@@ -233,6 +238,11 @@ class Step
             return s_f.toString() + " moves from " + 
             this.from.toString() + " to " + this.to.toString()
     }
+}
+
+function desc() : string
+{
+    return ""
 }
 
 function rabbit_moves(player : Player, p : Pos) : Pos[]
@@ -373,6 +383,11 @@ class PushPull
     equals(m : Move) : boolean
     {
         return m instanceof PushPull && m.from == this.from && m.to == this.to && m.dest == this.dest;
+    }
+
+    toString()
+    {
+        return this.from.toString() + " -> " + this.to.toString() + " , " + this.to.toString() + " -> " + this.dest.toString()
     }
 
     // Parameterized toString equivalent
@@ -882,5 +897,4 @@ class GameState {
         this.board = init_board;
         this.history = [];
     }
-
 }

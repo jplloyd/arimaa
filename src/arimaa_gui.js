@@ -41,6 +41,7 @@ let setup = function()
 	    var moves = moves_from_json(msgob.moves)
 	    window.vm.turn++
 	    window.vm.ts.base_board.apply_set(moves)
+	    window.vm.history.push(moves)
 	    window.vm.ts.turn_board.clone(window.vm.ts.base_board)
 	}
     }
@@ -54,10 +55,13 @@ let setup = function()
 function send_moves()
 {
     console.log("Time to send those moves")
-    window.conn.send(JSON.stringify({type : "moveset", moves : moves_to_json(window.vm.ts.moveset())}))
+    var _moves = moves_to_json(window.vm.ts.moveset())
+    window.conn.send(JSON.stringify({type : "moveset", moves : _moves }))
     window.vm.ts.apply()
+    window.vm.history.push(moves_from_json(_moves))
 }
 
+/*[[new Step(new Pos(0,0), new Pos(1,0)), new Step(new Pos(4,0), new Pos(5,0))],[new PushPull(new Pos(4,0), new Pos(5,0), new Pos(5, 1))]]*/
 
 let obfun = function(board, player)
 {
@@ -65,6 +69,7 @@ let obfun = function(board, player)
     el: "#main",
     data: {
 	ts : new TurnState(board, player),
+	history: [],
         active: null, // position
 	pusher: null, // position
 	status: 2,

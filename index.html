@@ -46,11 +46,18 @@
 	</div>
 	<button v-if="moves_made > 0" class="actionbutton" @click="ts.undo()">Undo</button>
 	<button v-if="moves_made > 0" class="actionbutton" @click="ts.reset_turn()">Reset turn</button>
-	<br />
-	<br />
-	<br />
-	<br />
-	<button v-if="valid_turn" class="actionbutton" style="height:80px" @click="end_turn">End turn</button>
+	<template v-if="valid_turn">
+	  <br />
+	  <br />
+	  <button class="actionbutton" style="height:80px" @click="end_turn">End turn</button>
+	</template>
+	<div style="text-align:center; font-family:monospace; font-size:12pt; font-weight: bold; display:flex; flex-direction:column-reverse;">
+	  <div v-for="h, i in history" style="padding:10px;" :class="[i%2 == 0 ? 'white_history' : 'black_history']">
+	    <div v-for="m in h">
+	      {{m.toString()}}
+	      </div>
+	  </div>
+	</div>
       </div>
     </body>
 </html>
