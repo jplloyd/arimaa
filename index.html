@@ -33,7 +33,7 @@
 	      <div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
 	    </template>
 	    <template v-for="i in board.pieces()">
-	      <div class="square piece"
+	      <div class="square piece_a"
 		   :class="[piece_c(i[1]), i[0].equals(active) || i[0].equals(pusher) ? 'marked' : '']"
 		   :style="pos(i[0].x, i[0].y)"
 		   @click.stop="orig_click(i[0])">

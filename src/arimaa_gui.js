@@ -7,10 +7,16 @@ let play = 2
 let game_done = 3
 
 
+let _setup = function()
+{
+    window.vm = new Vue(obfun(new Board(), 0))
+}
+
 let setup = function()
 {
     window.WebSocket = window.WebSocket || window.MozWebSocket
-    let conn = new WebSocket('ws://81.8.161.106:3000')
+    let server_ip=window.location.hostname
+    let conn = new WebSocket('ws://'+server_ip+':3000')
 
     window.conn = conn
     
