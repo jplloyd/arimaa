@@ -17,23 +17,19 @@
     </head>
     <body onload="setup()">
       <div id="main" @click="deactivate">
-	<div v-if="side_selection">
-	<div id="side_choice" :style="{display:'flex', justifyContent:'space-around'}">
-	  <div class="selection_box elephant_w"></div>
-	  <div class="selection_box elephant_b"></div>
-	</div>
-	  <button class="actionbutton">Confirm choice</button>	</div>
-	<div id="info_board">{{status_msg}} <template v-if="your_turn"> ~~ Moves made: {{moves_made}}</template></div>
+	<div id="info_board">{{status_msg}} <template v-if="your_turn"> ~ Moves made: {{moves_made}}</template></div>
 	<div class="board">
 	  <div style="position:relative;" class="innerboard">
+	    <!--Board numbering/lettering-->
 	    <template v-for="i in 16" >
 	      <div class="marking lettering" :style="letter_pos(i > 8, (i-1)%8)" ><span>{{board_letter((i-1)%8)}}<span></div>
 	    </template>
 	    <template v-for="i in 16">
 	      <div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
 	    </template>
+	    <!--Pieces - playing-->
 	    <template v-for="i in board.pieces()">
-	      <div class="square piece_a"
+	      <div v-if="vis_piece(i[1])" class="square piece_a"
 		   :class="[piece_c(i[1]), i[0].equals(active) || i[0].equals(pusher) ? 'marked' : '']"
 		   :style="pos(i[0].x, i[0].y)"
 		   @click.stop="orig_click(i[0])">
@@ -44,6 +40,8 @@
 	    </template>
 	  </div>
 	</div>
+
+	<button v-if="status == 1" class="actionbutton" @click="confirm_placement()">Confirm placement</button>
 	<button v-if="moves_made > 0" class="actionbutton" @click="ts.undo()">Undo</button>
 	<button v-if="moves_made > 0" class="actionbutton" @click="ts.reset_turn()">Reset turn</button>
 	<template v-if="valid_turn">

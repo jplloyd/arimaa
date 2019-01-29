@@ -33,7 +33,21 @@ let setup = function()
 	let msgob = JSON.parse(msg.data)
 	if(msgob.type == "setup")
 	{
+	    console.log("setting up...")
 	    window.vm = new Vue(obfun(new Board(), player))
+	}
+	else if(msgob.type == "start")
+	{
+	    console.log("Game is starting")
+	    window.vm.status = 2;
+	}
+	else if(msgob.type == "placement")
+	{
+	    console.log("Setting up opponents pieces")
+	    var pieces = setup_from_json(msgob.pieces)
+	    window.vm.ts.turn_board.setup(pieces)
+	    window.vm.ts.base_board.setup(pieces)
+	    window.vm.$forceUpdate()
 	}
 	else if(msgob.type == "moveset")
 	{
@@ -61,6 +75,11 @@ function send_moves()
     window.vm.history.push(moves_from_json(_moves))
 }
 
+function conf_placement(_setup, _player)
+{
+    window.conn.send(JSON.stringify({type : "placement", player : _player, pieces : _setup}))
+}
+
 /*[[new Step(new Pos(0,0), new Pos(1,0)), new Step(new Pos(4,0), new Pos(5,0))],[new PushPull(new Pos(4,0), new Pos(5,0), new Pos(5, 1))]]*/
 
 let obfun = function(board, player)
@@ -72,7 +91,7 @@ let obfun = function(board, player)
 	history: [],
         active: null, // position
 	pusher: null, // position
-	status: 2,
+	status: 1,
         turn: 0,
 	markers_dyn : undefined,
     },
@@ -93,9 +112,8 @@ let obfun = function(board, player)
         },
 	markers_alt: function()
 	{
-
-	    console.log("Markers tick");
-
+	    if(this.status != 2)
+		return []
 	    if(this.pusher != null)
 	    {
 		return dests(this.board, this.player, this.active);
@@ -126,7 +144,7 @@ let obfun = function(board, player)
 	},
 	your_turn: function()
 	{
-	    return this.turn % 2 == this.ts.player
+	    return this.status == 2 && this.turn % 2 == this.ts.player
 	},
 	moves_made: function()
 	{
@@ -134,6 +152,7 @@ let obfun = function(board, player)
 	},
 	status_msg: function() {
 	    switch(this.status){
+	    case -1: return "Waiting for both players to set up"
 	    case 0: return "Choose your side";
 	    case 1: return "Set up your pieces";
 	    case 2: if(this.turn % 2 == this.ts.player){ return "Your turn to play"; } else return "Opponents turn to play";
@@ -161,7 +180,20 @@ let obfun = function(board, player)
 	    this.markers_dyn = undefined
 	},
 	orig_click: function(origin){
-
+	    if(this.status==1){
+		if(this.active == null)
+		    this.active = origin
+		else if(!this.active.equals(origin))
+		{
+		    this.board.swap(this.active, origin)
+		    this.deactivate()
+		}
+	    }
+	    if(this.status==2){
+		this._orig_click(origin);
+	    }
+	},
+	_orig_click: function(origin){
 	    if(!this.your_turn)
 	    {
 		this.deactivate()
@@ -176,7 +208,22 @@ let obfun = function(board, player)
 		this.active = origin
 	    }
 	},
-        dest_click: function (dest) {
+	confirm_placement: function(){
+	    this.status=-1
+	    this.ts.base_board.clone(this.ts.turn_board)
+	    conf_placement(this.board.pieces(this.player), this.player)
+	},
+	vis_piece: function(p)
+	{
+	    return this.status==2 || this.player == 1 || this.player == p.player
+	},
+	dest_click: function(dest) {
+	    if(this.status==2)
+	    {
+		this._dest_click(dest)
+	    }
+	},
+        _dest_click: function (dest) {
 	    console.log(dest[0].toString())
 
 	    if(dest[1] == MoveType.Step)

@@ -20,6 +20,8 @@ var clients = []
 
 var turn = 0;
 var board = new Board();
+var status = 0
+var confirmed = 0
 
 
 // WebSocket server
@@ -47,7 +49,10 @@ wsServer.on('request', function(request) {
 	    }
 	    else
 	    {
-		
+		if(ob.type == "placement")
+		{
+		    confirmed ++;
+		}
 	    // process WebSocket message
 		for(let i = 0; i < clients.length; i++)
 		{
@@ -57,6 +62,14 @@ wsServer.on('request', function(request) {
 			clients[i].sendUTF(message.utf8Data)
 			
 		    }
+		}
+	    }
+	    if(confirmed == 2){
+		console.log("Sending start signals")
+		confirmed++;
+		for(let i = 0; i < clients.length; i++)
+		{
+		    clients[i].sendUTF(JSON.stringify({type : "start"}))
 		}
 	    }
 

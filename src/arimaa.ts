@@ -426,6 +426,18 @@ function moves_to_json(mvs : Move[]) : string
     return JSON.stringify(mvs)
 }
 
+function setup_from_json(ob : any) : [Pos, Piece][]
+{
+    let result : [Pos, Piece][] = []
+    for(let i of ob)
+    {
+        let pos : any = i[0]
+        let p : any = i[1]
+        result.push([new Pos(pos.x, pos.y), new Piece(p.player, p.type)])
+    }
+    return result;
+}
+
 function moves_from_json(s : string) : Move[]
 {
     let result : Move[] = []
@@ -441,6 +453,16 @@ function moves_from_json(s : string) : Move[]
             result.push(new PushPull(fromob, toob, new Pos(o.dest.x, o.dest.y)))
     }
     return result
+}
+
+function setup_to_json(pieces : [Pos, Piece][])
+{
+    let arr = []
+    for(let [pos, p] of pieces)
+    {
+        arr.push(pos.to_index(), p)
+    }
+    return JSON.stringify(arr)
 }
 
 type Square = Piece | null
@@ -572,6 +594,22 @@ class Board {
         return i >= 0 && i <= 63;
     }
 
+    swap(p : Pos, p2 : Pos)
+    {
+        let tmp = this.get_s(p)
+        this.set_s(p, this.get_s(p2))
+        this.set_s(p2, tmp)
+    }
+
+    setup(pieces : [Pos, Piece][])
+    {
+        for(let [pos, p] of pieces)
+        {
+            console.log("setting up: ", pos.toString(), p.toString())
+            this.set_s(pos, p)
+        }
+    }
+
     free(pos : Pos) : boolean {
         return this.board[pos.to_index()] == null
     }
@@ -603,7 +641,7 @@ class Board {
         for(let i = 0; i < this.board.length; i++)
         {
             let s = this.board[i];
-            if(s != null && (!p || s.player == p))
+            if(s != null && (p == null || s.player == p ))
                 result.push([Pos.from_index(i), s]);
         }
         return result;
