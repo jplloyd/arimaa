@@ -3,14 +3,7 @@
 xmlns:svg="http://www.w3.org/2000/svg"
 xmlns="http://www.w3.org/2000/svg"
 xmlns:xlink="http://www.w3.org/1999/xlink"
-height="8" width="8">
-<style type="text/css">.w{fill:#c28359}.b{fill:#8a5050}</style>
-<defs><path id="t" d="M0 1Q 0 3 1 4Q0 5 0 7L-1 4zM1 0Q 3 0 4 1Q5 0 7 0L4 -1zM8 1Q 8 3 7 4Q8 5 8 7L9 4zM1 8Q 3 8 4 7Q5 8 7 8L4 9z"
-transform="scale(0.125)"/></defs>
-<rect class="w" width="8" height="8"/>
-<path class="b" style="fill-rule:evenodd"
-d="M0 0,0 8,1 8,1 0ZM2 0,2 8,3 8,3 0ZM4 0,4 8,5 8,5 0ZM6 0,6 8,7 8,7 0ZM0 0,0 1,8 1,8 0ZM0 2,0 3,8 3,8 2ZM0 4,0 5,8 5,8 4ZM0 6,0 7,8 7,8 6Z"/>
-<g class="w"><use xlink:href="#t" x="2" y="5"/><use xlink:href="#t" x="5" y="2"/></g>
-<g class="b"><use xlink:href="#t" x="2" y="2"/><use xlink:href="#t" x="5" y="5"/></g>
-</svg>
+height="8" width="8"><style type="text/css">.w{fill:#c28359}.b{fill:#8a5050}</style><defs><path id="t" d="M0 1Q 0 3 1 4Q0 5 0 7L-1 4zM1 0Q 3 0 4 1Q5 0 7 0L4 -1zM8 1Q 8 3 7 4Q8 5 8 7L9 4zM1 8Q 3 8 4 7Q5 8 7 8L4 9z"
+transform="scale(0.125)"/></defs><rect class="w" width="8" height="8"/><path class="b" style="fill-rule:evenodd"
+d="M0 0,0 8,1 8,1 0ZM2 0,2 8,3 8,3 0ZM4 0,4 8,5 8,5 0ZM6 0,6 8,7 8,7 0ZM0 0,0 1,8 1,8 0ZM0 2,0 3,8 3,8 2ZM0 4,0 5,8 5,8 4ZM0 6,0 7,8 7,8 6Z"/><g class="w"><use xlink:href="#t" x="2" y="5"/><use xlink:href="#t" x="5" y="2"/></g><g class="b"><use xlink:href="#t" x="2" y="2"/><use xlink:href="#t" x="5" y="5"/></g></svg>
 
