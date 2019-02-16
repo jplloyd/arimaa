@@ -15,7 +15,7 @@ const dirs : string = "nesw"
 
 /* A position on the 8x8 board
 coordinates going horizontally from SE to NW 
-with respect to white's perspective*/
+from white's perspective*/
 class Pos
 {
     x : number
@@ -68,6 +68,11 @@ class Pos
             case Dir.West:
                 return new Pos(this.x+1, this.y)
         }
+    }
+
+    equals(p : Pos) : boolean
+    {
+        return this.x == p.x && this.y == p.y
     }
 }
 
@@ -167,19 +172,44 @@ class BoardPiece
 
 // ------------------------------------------------- //
 
-type PosPc = [Pos, Piece]
+let traps = [18, 21, 42, 45]
 
-function pospc_to_json([pos, pc] : PosPc) : any[]
+// (Pos, Piece) tuple indicating a trapped piece
+class Trapped
 {
-    return [pos.index(), pc.to_json()]
-}
+    pos : Pos
+    piece : Piece
+    constructor(p : Pos, pc : Piece)
+    {
+        this.pos = p
+        this.piece = pc
+    }
 
-function pospc_from_json([pos, pc] : any[]) : PosPc
-{
-    return [Pos.from_index(pos), Piece.from_json(pc)]
+    toString() : string
+    {
+        return `${this.piece}${this.pos}x`
+    }
+
+    descr() : string
+    {
+        return `${this.piece.descr()} gets trapped at ${this.pos}`
+    }
+
+    to_json() : number
+    {
+        return (this.piece.to_json() << 2 | traps.indexOf(this.pos.index())) << 1 | 1
+    }
+
+    static from_json(n : number) : Trapped
+    {
+        n >>= 1
+        return new Trapped(Pos.from_index(traps[n & 3]), Piece.from_json(n >> 2))
+    }
 }
 
 // ------------------------------------------------- //
+
+type MTrapped = Trapped | null
 
 /* Simple step */
 class Step
@@ -187,10 +217,10 @@ class Step
     piece : Piece
     from : Pos
     to : Dir
-    trapped : PosPc | boolean
+    trapped : MTrapped
     readonly cost : number = 1
 
-	constructor(piece : Piece, from : Pos, to : Dir, trapped : PosPc | boolean) {
+	constructor(piece : Piece, from : Pos, to : Dir, trapped : MTrapped) {
         this.piece = piece
         this.from = from
         this.to = to
@@ -201,36 +231,37 @@ class Step
     {
         let str = `${this.piece}${this.from}${dirs[this.to]}`
  
-        if(this.trapped instanceof Array)
-            str += ` ${this.trapped[1]}${this.trapped[0]}x`
-        else if(this.trapped == true)
-            str += ` ${this.piece}${this.from.step(this.to)}x`
+        if(this.trapped != null)
+            str += ` ${this.trapped}`
         
         return str
     }
 
     descr() : string
     {
-        return `${this.piece} moves from ${this.from} to the ${Dir[this.to]}`
+        let str = `${this.piece} moves from ${this.from} to the ${Dir[this.to]}`
+        if(this.trapped != null)
+            str += `${this.trapped.descr()}`
+        return str;
     }
 
     to_json() : any[]
     {
         let trapped : any
-        if(this.trapped instanceof Array)
-            trapped = pospc_to_json(this.trapped)
+        if(this.trapped == null)
+            trapped = 0
         else
-            trapped = Number(this.trapped)
+            trapped = this.trapped.to_json()
         return [this.piece.to_json(), this.from.index(), this.to, trapped]
     }
 
     static from_json(l : any[]) : Step
     {
-        let trapped : boolean | PosPc
-        if(l[3] instanceof Array)
-            trapped = pospc_from_json(l[3])
+        let trapped = l[3]
+        if(trapped == 0)
+            trapped = null
         else
-            trapped = Boolean(l[3])
+            trapped = Trapped.from_json(trapped)
         return new Step(Piece.from_json(l[0]), Pos.from_index(l[1]), l[2], trapped)
     }
 }
@@ -244,10 +275,10 @@ class PushPull
     from : Pos
     to : Dir
     dest : Dir
-    trapped : PosPc[] | number
+    trapped : [MTrapped, MTrapped] // [1st step, 2nd step]
     readonly cost : number = 2
 
-    constructor(from_piece : Piece, to_piece : Piece, from : Pos, to : Dir, dest : Dir, trapped : PosPc[] | number)
+    constructor(from_piece : Piece, to_piece : Piece, from : Pos, to : Dir, dest : Dir, trapped : [MTrapped, MTrapped])
     {
         this.from_piece = from_piece
         this.to_piece = to_piece
@@ -261,44 +292,40 @@ class PushPull
     {
         // Some notes on the rules - the pushed or puller is moved first (indicated first)
         // When a unit dies in a trap in the first step, it is recorded immediately after the move that traps it
-        let mark = ["==>", "--<>"][this.from_piece.stronger(this.to_piece) ? 0 : 1]
-        let to = this.from.step(this.to)
-        return `${this.from_piece}${this.from}${dirs[this.to]}${mark}${this.to_piece}${to}${dirs[this.dest]}`
+        let s1 = new Step(this.to_piece, this.from.step(this.to), this.dest, this.trapped[0])
+        let s2 = new Step(this.from_piece, this.from, this.to, this.trapped[0])
+        return `${s1} ${s2}`
     }
 
     descr() : string
     {
         let to = this.from.step(this.to)
+        let desc : string
         if(this.from_piece.stronger(this.to_piece))
-        {
-            return `${this.from_piece.descr()} at ${this.from} moves to the ${Dir[this.to]}, pushing ${this.to_piece.descr()} from ${to} to the ${Dir[this.dest]}`
-        }
+            desc = `${this.from_piece.descr()} at ${this.from} moves to the ${Dir[this.to]}, pushing ${this.to_piece.descr()} from ${to} to the ${Dir[this.dest]}`
         else
-        {
-            return `${this.to_piece.descr()} at ${to} moves to the ${Dir[this.dest]}, pulling ${this.from_piece.descr()} from ${this.from}`
-        }
+            desc = `${this.to_piece.descr()} at ${to} moves to the ${Dir[this.dest]}, pulling ${this.from_piece.descr()} from ${this.from}`
+        if(this.trapped[0] != null)
+            desc += `. ${this.trapped[0].descr()}`
+        if(this.trapped[1] != null)
+            desc += `${this.trapped[0] != null ? " and" : "."} ${this.trapped[1].descr()}`
+        return desc
     }
 
     to_json() : any[]
     {
-        let trapped : any
-        if(this.trapped instanceof Array)
-            trapped = this.trapped.map(pospc_to_json)
-        else
-            trapped = this.trapped
-        return [this.from_piece.to_json(), this.to_piece.to_json(), this.from.index(), this.to, this.dest, this.trapped]
+        let trapped = this.trapped.map(x => x == null ? 0 : x.to_json())
+        return [this.from_piece.to_json(), this.to_piece.to_json(), this.from.index(), this.to, this.dest, trapped[0], trapped[1]]
     }
 
     static from_json(l : any[]) : PushPull
     {
-        let trapped : any = l[5]
-        if(trapped instanceof Array)
-            trapped = trapped.map(pospc_from_json)
+        let tt = l.slice(-2).map(x => x == 0 ? null : Trapped.from_json(x))
         return new PushPull(
             Piece.from_json(l[0]), 
             Piece.from_json(l[1]), 
             Pos.from_index(l[2]), 
-            l[3], l[4], trapped)
+            l[3], l[4], [tt[0], tt[1]])
     }
 
     compress() : number
@@ -344,7 +371,7 @@ class GameState
 
 }
 
-function test(a : any, t : any) { return a.toString() == t.from_json(a.to_json()).toString()}
+function test(a : any) { return a.toString() == a.__proto__.constructor.from_json(a.to_json()).toString()}
 
 /*
     Test values
@@ -355,9 +382,13 @@ var p3 = new Piece(Player.Black, Rank.Elephant)
 var bp1 = new BoardPiece(p1, new Pos(3, 4), true, false)
 var bp2 = new BoardPiece(p2, new Pos(2,3), true, true)
 
-var st1 = new Step(p1, new Pos(3,4), Dir.North, false)
-var st2 = new Step(p2, new Pos(3,4), Dir.North, true)
-var st3 = new Step(p1, new Pos(3,4), Dir.North, [new Pos(5,5), p2])
+var st1 = new Step(p1, new Pos(3,4), Dir.North, null)
+var st2 = new Step(p2, new Pos(3,4), Dir.North, new Trapped(new Pos(2,2), p2))
+var st3 = new Step(p1, new Pos(3,4), Dir.North, new Trapped(new Pos(5,5), p2))
 
-var pp1 = new PushPull(p1, p2, new Pos(4, 5), Dir.North, Dir.South, [])
-var pp2 = new PushPull(p3, p1, new Pos(7,5), Dir.West, Dir.West, 1)
+var pp1 = new PushPull(p1, p2, new Pos(4, 5), Dir.North, Dir.South, [null, null])
+var pp2 = new PushPull(p3, p1, new Pos(2,5), Dir.West, Dir.West, [null, null])
+
+var pp3 = new PushPull(p3, p1, new Pos(6,5), Dir.West, Dir.West, [new Trapped(new Pos(2,2), p2), null])
+var pp4 = new PushPull(p3, p1, new Pos(6,5), Dir.West, Dir.West, [null, new Trapped(new Pos(2,5), p3)])
+var pp5 = new PushPull(p3, p1, new Pos(6,5), Dir.West, Dir.West, [new Trapped(new Pos(5,2), p1), new Trapped(new Pos(2,5), p3)])
