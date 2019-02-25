@@ -166,22 +166,25 @@ enum Player { White, Black }
 class Piece implements Eq<Piece>{
     player: Player;
     type: PieceType;
+    pos : Pos
     constructor(
         player: Player,
         type: PieceType,
+        pos : Pos
     ) {
         this.player = player;
         this.type = type;
+        this.pos = pos
     }
 
     copy() : Piece
     {
-        return new Piece(this.player, this.type)
+        return new Piece(this.player, this.type, this.pos)
     }
 
     equals(p : Piece) : boolean
     {
-        return p.player == this.player && p.type == this.type;
+        return p.player == this.player && p.type == this.type && this.pos.equals(p.pos);
     }
 
     ally(p : Piece) : boolean
@@ -433,7 +436,8 @@ function setup_from_json(ob : any) : [Pos, Piece][]
     {
         let pos : any = i[0]
         let p : any = i[1]
-        result.push([new Pos(pos.x, pos.y), new Piece(p.player, p.type)])
+        let pp = new Pos(pos.x, pos.y)
+        result.push([pp, new Piece(p.player, p.type, pp)])
     }
     return result;
 }
@@ -492,7 +496,7 @@ function default_board(): Square[] {
         for (let n: number = 0; n < piece_order.length; n++) {
             let pos_index = n + (plr * (64 - 16));
             let p_index: number = (n + 8 * plr) % 16;
-            let piece: Piece = new Piece(plr, piece_order[p_index]);
+            let piece: Piece = new Piece(plr, piece_order[p_index], Pos.from_index(pos_index));
             board[pos_index] = piece
         }
     }
