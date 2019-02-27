@@ -53,7 +53,7 @@ class Pos
             res.push(new Pos(p.x, p.y - 1))
         if (p.y < 7)
             res.push(new Pos(p.x, p.y + 1))
-        return res;
+        return res
     }
 
     step(d : Dir) : Pos
@@ -73,7 +73,7 @@ class Pos
 
     equals(p : Pos) : boolean
     {
-        return this.x == p.x && this.y == p.y
+        return p != undefined && this.x == p.x && this.y == p.y
     }
 
     clone(p : Pos) : void
@@ -137,9 +137,12 @@ class Piece
         this.rank = p.rank
     }
 
-    equals(p : Piece) : boolean
+    equals(p : Piece | undefined) : boolean
     {
-        return this.player == p.player && this.rank == p.rank
+        if(p == undefined)
+            return false
+        else
+            return this.player == p.player && this.rank == p.rank
     }
 }
 
@@ -210,7 +213,7 @@ class BoardPiece
 // ------------------------------------------------- //
 
 // Trap positions for compact representations 
-const traps = [18, 21, 42, 45]
+const traps : number[] = [18, 21, 42, 45]
 
 // Index from indices of adjacent squares to their respective traps
 const trap_adj: number[] = []
@@ -244,7 +247,7 @@ class Trapped
         return this.occupied ? `${this.piece.descr()} gets trapped at ${this.pos}` : ''
     }
 
-    to_json() : number // 7 bits
+    to_json() : number
     {
         if(!this.occupied)
             return 0
@@ -258,6 +261,18 @@ class Trapped
             return nothing_trapped
         n >>= 1
         return new Trapped(Pos.from_index(traps[n & 3]), Piece.from_json(n >> 2))
+    }
+
+    equals(t : Trapped) : boolean
+    {
+        if(t != undefined)
+        {
+            if(this.occupied == false && t.occupied == false)
+                return true
+            else
+                return this.occupied == t.occupied && this.piece.equals(t.piece) && this.pos.equals(t.pos)
+        }
+        return false
     }
 }
 
@@ -282,11 +297,29 @@ class Step
         this.to = to
         this.trapped = trapped
 	}
-    
+
+    /**
+     * Return true if the move is valid for the given board and player turn
+     * @param board The board to check the move against
+     * @param turn The player for whom the turn is validated
+     */
     valid(board : Board, turn : Player) : boolean
     {
+        let to_p = this.from.step(this.to)
+        let pred = (
+            this.piece.player == turn &&
+            this.piece.equals(board.get(this.from)) &&
+            board.free(to_p) && !board.frozen(this.from)
+        )
+        if(traps.indexOf(to_p.index()) != -1)
+            return pred && board.deadly_trap(to_p, this.piece.player).equals(this.trapped)
+        else
+            return pred && board.sole_guardian(this.from).equals(this.trapped)
+    }
 
-        return true
+    apply(board : Board) : void
+    {
+
     }
 
     toString() : string
@@ -300,7 +333,7 @@ class Step
         return `${this.piece} moves from ${this.from} to the ${Dir[this.to]}${this.trapped.descr()}`
     }
 
-    to_json() : number // 19 bits
+    to_json() : number
     {
         let n = this.piece.to_json() << 6 | this.from.index()
         return (n << 2 | this.to) << 7 | this.trapped.to_json()
@@ -336,6 +369,39 @@ class PushPull
         this.trapped = trapped
     }
 
+    /**
+     * Check if the move is legal for a given board and player's turn
+     * @param board The board state to check against
+     * @param turn The player for whose turn the move is validated
+     */
+    valid(board : Board, turn : Player) : boolean
+    {
+        let to_pos = this.from.step(this.to)
+        let dest_pos = to_pos.step(this.dest)
+
+        let p1 = this.from_piece.player != this.to_piece.player
+        let p2 = this.from_piece.rank != this.to_piece.rank
+
+        if(!(p1 && p2))
+            return false
+
+        let st1 = new Step(this.to_piece, to_pos, this.dest, this.trapped[0])
+        let st2 = new Step(this.from_piece, this.from, this.to, this.trapped[1])
+
+        if(this.to_piece.player != turn)
+            [st1, st2] = [st2, st1]
+
+        if(st1.valid(board, turn))
+        {
+            let tmp_to = board.get_bp(to_pos)
+            board.set(to_pos, undefined)
+            let result = st2.valid(board, (turn+1)%2)
+            board.set(to_pos, tmp_to)
+            return result
+        }
+        return false
+    }
+
     toString() : string
     {
         // Some notes on the rules - the pushed or puller is moved first (indicated first)
@@ -362,7 +428,6 @@ class PushPull
         return desc
     }
 
- 
     to_json() : number
     {
         let n = this.from_piece.to_json() << 4 | this.to_piece.to_json()
@@ -380,17 +445,7 @@ class PushPull
         let top = Piece.from_json(n >>> 10 & 15)
         let from = Pos.from_index(n >>> 4 & 63)
         let pp = new PushPull(frp, top, from, n >>> 2 & 3, n & 3, ts)
-        return pp;
-    }
-
-    compress() : number
-    {
-        return this.from.index() | this.to << 9 | this.dest << 6
-    }
-
-    static decompress(n : number)
-    {
-        return [Pos.from_index(n & 63), n >> 9 & 3, n >> 6 & 3]
+        return pp
     }
 }
 
@@ -415,9 +470,14 @@ class Move
     static from_json(n : number) : Move
     {
         if(n & 1)
-            return new Move(Step.from_json(n << 1))
+            return new Move(Step.from_json(n >> 1))
         else
-            return new Move(PushPull.from_json(n << 1))
+            return new Move(PushPull.from_json(n >> 1))
+    }
+
+    toString() : string
+    {
+        return this.move.toString()
     }
 }
 
@@ -473,7 +533,7 @@ class BoardSetup
 
 class Board
 {
-    board : (Maybe<Piece>)[]
+    board : Maybe<BoardPiece>[]
     readonly pieces : BoardPiece[]
 
     static readonly ranknfile = [
@@ -490,45 +550,189 @@ class Board
         for(let p of this.pieces)
         {
             if(p.alive)
-                this.board[p.pos.index()] = p.piece
+                this.board[p.pos.index()] = p
         }
     }
 
+    /**
+     * Constructs a board with a basic setup of pieces - rabbits at the back
+     * weakest to strongest placed mirrored from the edges to the center at the front
+     */
     static default_board() : Board
     {
         let pieces = []
         pieces.length = 32
-        let i = 0
+        let n = 0
         for(let p of [Player.White, Player.Black])
         {
-            let index = [0, 63][p]
-            let offs = [1, -1][p]
+            let i = [0, 63][p]
+            let o = [1, -1][p]
 
             for(let r of Board.ranknfile)
             {
-                pieces[i] = BoardPiece.basic(new Piece(p, r), Pos.from_index(index))
-                index += offs
-                i++
+                pieces[n] = BoardPiece.basic(new Piece(p, r), Pos.from_index(i))
+                i += o
+                n++
             }
         }
         return new Board(pieces)
     }
 
+    /**
+     * Return the piece at the given square, or undefined
+     * if the position is unoccupied
+     * @param p The position of the square to retrieve
+     */
     get(p : Pos) : Maybe<Piece>
+    {
+        return this.get_i(p.index())
+    }
+
+    get_i(i : number) : Maybe<Piece>
+    {
+        let s = this.board[i]
+        if(s != undefined)
+            return s.piece
+        else
+            return s
+    }
+
+    get_bp(p : Pos) : Maybe<BoardPiece>
     {
         return this.board[p.index()]
     }
 
-    free(p : Pos)
+
+    /**
+     * Assign piece to (or unset) a square
+     * @param p Position of square to assign to
+     * @param s Square value to set
+     */
+    set(p : Pos, s : Maybe<BoardPiece>) : void
     {
-        this.get(p) == undefined
+        this.set_i(p.index(), s)
     }
 
+    // Set using direct index
+    set_i(i : number, s : Maybe<BoardPiece>) : void
+    {
+        this.board[i] = s
+    }
+
+    /**
+     * Return true if the square with the given position is empty, false otherwise
+     * @param p The position to check
+     */
+    free(p : Pos) : boolean
+    {
+        return this.get(p) == undefined
+    }
+
+    /**
+     * Returns true if the given position is occupied by a piece that
+     * cannot move due to being locked by an adjacent stronger opponent
+     * piece, and lacks adjacent allied pieces.
+     * @param p The position to check for a frozen piece
+     */
+    frozen(p : Pos) : boolean
+    {
+        let s = this.get(p)
+        if(s != undefined)
+        {
+            if(this.allies(p, s.player).length > 0)
+                return false
+            for(let n of this.neighbours(p))
+            {
+                if(n[1].stronger(s))
+                    return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Return (position, piece) pairs of occupied adjacent squares
+     * @param p The position for which neighbouring pieces will be returned
+     */
+    neighbours(p : Pos) : [Pos, Piece][]
+    {
+        let res : [Pos, Piece][] = []
+        for(let ap of p.adjacent())
+        {
+            let s = this.get(ap)
+            if(s != undefined)
+            {
+                res.push([ap, s])
+            }
+        }
+        return res
+    }
+
+    /**
+     * Return (position, piece) pairs of adjacent pieces belonging to the given player
+     * @param p The position for which allied neighbouring pieces will be returned
+     * @param t The player to whom the returned pieces belong
+     */
+    allies(p : Pos, t : Player) : [Pos, Piece][]
+    {
+        return this.neighbours(p).filter(x => x[1].player == t)
+    }
+
+    /**
+     * Checks if the position is a trap that would be deadly for a piece belonging
+     * to the given player, should it step into it. Returns the position and piece
+     * wrapped in a Trapped object if that is the case, otherwise return a constant.
+     * @param p Position of the potential deadly trap to check
+     * @param pl The player for whom to check if the trap is deadly
+     */
+    deadly_trap(p : Pos, pl : Player) : Trapped
+    {
+        let i = p.index()
+        if(traps.indexOf(i) != -1)
+        {
+            let a = this.allies(p, pl)
+            if(a.length == 1)
+                return new Trapped(p, a[0][1])
+        }
+        return nothing_trapped
+    }
+
+    /**
+     * If the position is adjacent to a trap with an allied piece in it and is the sole
+     * allied neighbour to that trap, that position and piece is returned as a Trapped object.
+     * Otherwise, the nothing-trapped constant is returned.
+     * @param p The position of the prospective sole guardian.
+     */
+    sole_guardian(p : Pos) : Trapped
+    {
+        let i = p.index()
+        let g = this.get_i(i)
+        let t = trap_adj[i]
+        if(t != undefined && g != undefined)
+        {
+            let tp = Pos.from_index(t)
+            let s = this.get_i(t)
+            if(s != undefined && s.player == g.player)
+                if(this.allies(tp, g.player).length == 1)
+                    return new Trapped(tp, s)
+        }
+        return nothing_trapped
+    }
+
+    /**
+     * Validate a move based on the current board and whose turn it is
+     * @param m The move to validate
+     * @param turn The player whose turn it is
+     */
     valid_move(m : Move, turn : Player) : boolean
     {
-        throw "NothingHereYet"
+        return m.move.valid(this, turn)
     }
 
+    apply_move(m : Move)
+    {
+
+    }
 
     to_json() : any[]
     {
@@ -551,11 +755,20 @@ class Board
     }
 }
 
+// Initial setup, move history, latest board.
+// Status or state
 class GameState
 {
 
 }
 
+class TurnState
+{
+
+}
+
+
+// Move this to a separate module - or a test module or something
 function test(a : any)
 {
     let j1 = a.to_json()
@@ -602,6 +815,11 @@ var pp3 = new PushPull(p3, p1, new Pos(6,5), Dir.West, Dir.West, [new Trapped(ne
 var pp4 = new PushPull(p3, p1, new Pos(6,5), Dir.West, Dir.West, [nothing_trapped, new Trapped(new Pos(2,5), p3)])
 var pp5 = new PushPull(p3, p1, new Pos(6,5), Dir.West, Dir.West, [new Trapped(new Pos(5,2), p1), new Trapped(new Pos(2,5), p3)])
 
+var m1 = new Move(st1)
+var m2 = new Move(pp3)
+
+var db = Board.default_board()
+
 let tests =
 [
     p0, p1, p2, p3, p4,
@@ -609,7 +827,7 @@ let tests =
     t1, t2, t3,
     st1, st2, st3, st4, st5,
     pp1, pp2, pp3, pp4, pp5,
-    Board.default_board()
+    db
 ]
 
 function run_tests()
