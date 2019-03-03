@@ -6,6 +6,20 @@ enum Player {White, Black}
 enum Rank {Rabbit, Cat, Dog, Horse, Camel, Elephant}
 enum Dir {North, East, South, West}
 
+function invert(d : Dir) : Dir
+{
+    return (d+2)%4
+}
+
+function opponent(p : Player) : Player
+{
+    return (p+1) % 2
+}
+
+function xor(a : boolean, b : boolean) : boolean
+{
+    return Boolean(Number(a) ^ Number(b))
+}
 /* ------------- Constants ------------ */
 
 const dirs : string = "nesw"
@@ -208,6 +222,19 @@ class BoardPiece
         this.pos.clone(bp.pos)
         this.alive = bp.alive
     }
+
+    stronger(bp : BoardPiece) : boolean
+    {
+        return this.piece.stronger(bp.piece)
+    }
+
+    equals(bp : BoardPiece)
+    {
+            return bp != undefined &&
+            this.alive == bp.alive &&
+            this.pos.equals(bp.pos) &&
+            this.piece.equals(bp.piece)
+    }
 }
 
 // ------------------------------------------------- //
@@ -305,6 +332,10 @@ class Step
      */
     valid(board : Board, turn : Player) : boolean
     {
+        // Special movement rules for rabbits
+        if(this.piece.rank == Rank.Rabbit && this.to == 2 - turn * 2)
+            return false
+
         let to_p = this.from.step(this.to)
         let pred = (
             this.piece.player == turn &&
@@ -317,9 +348,30 @@ class Step
             return pred && board.sole_guardian(this.from).equals(this.trapped)
     }
 
+    /**
+     * Apply the step to the board (without validation)
+     * Move the piece and trap the trapped piece (may be the same)
+     * @param board
+     */
     apply(board : Board) : void
     {
+        let bp = <BoardPiece>board.get_bp(this.from)
+        let to_p = this.from.step(this.to)
+        board.set(to_p, bp)
+        board.set(this.from, undefined)
+        bp.pos.clone(to_p)
+        if(this.trapped.occupied)
+        {
+            board.trap(this.trapped)
+        }
+    }
 
+    revert(board : Board) : void
+    {
+        if(this.trapped.occupied)
+            board.untrap(this.trapped)
+        let rs = new Step(this.piece, this.from.step(this.to), invert(this.to), nothing_trapped)
+        rs.apply(board)
     }
 
     toString() : string
@@ -356,6 +408,9 @@ class PushPull
     from : Pos
     to : Dir
     dest : Dir
+    //Calculated properties
+    readonly step1 : Step
+    readonly step2 : Step
     readonly trapped : [Trapped, Trapped] // [1st step, 2nd step]
     readonly cost : number = 2
 
@@ -367,6 +422,9 @@ class PushPull
         this.to = to
         this.dest = dest
         this.trapped = trapped
+
+        this.step1 = new Step(this.to_piece, this.from.step(this.to), this.dest, this.trapped[0])
+        this.step2 = new Step(this.from_piece, this.from, this.to, this.trapped[1])
     }
 
     /**
@@ -376,39 +434,35 @@ class PushPull
      */
     valid(board : Board, turn : Player) : boolean
     {
-        let to_pos = this.from.step(this.to)
-        let dest_pos = to_pos.step(this.dest)
-
         let p1 = this.from_piece.player != this.to_piece.player
         let p2 = this.from_piece.rank != this.to_piece.rank
 
         if(!(p1 && p2))
             return false
 
-        let st1 = new Step(this.to_piece, to_pos, this.dest, this.trapped[0])
-        let st2 = new Step(this.from_piece, this.from, this.to, this.trapped[1])
-
+        let st1 : Step = this.step1
+        let st2 : Step = this.step2
         if(this.to_piece.player != turn)
             [st1, st2] = [st2, st1]
 
-        if(st1.valid(board, turn))
-        {
-            let tmp_to = board.get_bp(to_pos)
-            board.set(to_pos, undefined)
-            let result = st2.valid(board, (turn+1)%2)
-            board.set(to_pos, tmp_to)
-            return result
-        }
-        return false
+        return st1.valid(board, turn) && st2.valid(board.copy().apply_move(new Move(st1)), opponent(turn))
+    }
+
+    apply(board : Board) : void
+    {
+        this.step1.apply(board)
+        this.step2.apply(board)
+    }
+
+    revert(board : Board) : void
+    {
+        this.step2.revert(board)
+        this.step1.revert(board)
     }
 
     toString() : string
     {
-        // Some notes on the rules - the pushed or puller is moved first (indicated first)
-        // When a unit dies in a trap in the first step, it is recorded immediately after the move that traps it
-        let s1 = new Step(this.to_piece, this.from.step(this.to), this.dest, this.trapped[0])
-        let s2 = new Step(this.from_piece, this.from, this.to, this.trapped[0])
-        return `${s1} ${s2}`
+        return `${this.step1} ${this.step2}`
     }
 
     descr() : string
@@ -480,6 +534,9 @@ class Move
         return this.move.toString()
     }
 }
+type StepInfo = {type : 'step', to : Pos}
+type PPInfo = {type : 'pushpull', to : Pos, dest : Pos[]}
+type MoveInfo = StepInfo | PPInfo
 
 class BoardSetup
 {
@@ -534,24 +591,30 @@ class BoardSetup
 class Board
 {
     board : Maybe<BoardPiece>[]
-    readonly pieces : BoardPiece[]
+    dead_white : number[] = []
+    dead_black : number[] = []
+    pieces : BoardPiece[]
 
     static readonly ranknfile = [
         0,0,0,0,0,0,0,0,
         1,2,3,4,5,3,2,1,
     ]
 
-    constructor(pieces : BoardPiece[])
+    constructor(pieces : BoardPiece[], dead_white : number[], dead_black : number[])
     {
         this.board = []
         this.board.length = 64
 
         this.pieces = pieces
-        for(let p of this.pieces)
+        for (let p of this.pieces)
         {
-            if(p.alive)
+            if (p.alive)
+            {
                 this.board[p.pos.index()] = p
+            }
         }
+        this.dead_white = dead_white
+        this.dead_black = dead_black
     }
 
     /**
@@ -575,7 +638,7 @@ class Board
                 n++
             }
         }
-        return new Board(pieces)
+        return new Board(pieces, [] ,[])
     }
 
     /**
@@ -601,7 +664,6 @@ class Board
     {
         return this.board[p.index()]
     }
-
 
     /**
      * Assign piece to (or unset) a square
@@ -634,18 +696,89 @@ class Board
      * piece, and lacks adjacent allied pieces.
      * @param p The position to check for a frozen piece
      */
-    frozen(p : Pos) : boolean
+
+    frozen(p : Pos | BoardPiece) : boolean
     {
-        let s = this.get(p)
+        let s : Maybe<BoardPiece>
+        if(p instanceof BoardPiece)
+            s = p
+        else
+            s = this.get_bp(p)
         if(s != undefined)
         {
-            if(this.allies(p, s.player).length > 0)
+            if(this.allies(s.pos, s.piece.player).length > 0)
                 return false
-            for(let n of this.neighbours(p))
+            for(let n of this.neighbours(s.pos))
             {
-                if(n[1].stronger(s))
+                if(n[1].stronger(s.piece))
                     return true
             }
+        }
+        return false
+    }
+
+    rabbits(p : Player)
+    {
+        return this.pieces.filter(bp => bp.alive && bp.piece.rank == Rank.Rabbit && bp.piece.player == p)
+    }
+
+    // Pieces that can be moved by the given player
+    moveables(p : Player)
+    {
+        return this.pieces.filter(bp =>
+            bp.alive && bp.piece.player == p && this.moves(bp, p).length > 0
+        )
+    }
+
+    moves(bp : BoardPiece, turn : Player) : MoveInfo[]
+    {
+        let own_piece = bp.piece.player == turn
+        if(!bp.alive || (own_piece && this.frozen(bp)))
+            return []
+
+        let res : MoveInfo[] = []
+        for(let p of bp.pos.adjacent())
+        {
+            let np = this.get_bp(p)
+            if(np == undefined)
+            {
+                if(own_piece)
+                {
+                    // Rabbits cannot step backwards
+                    if(bp.piece.rank != Rank.Rabbit || to_dir(bp.pos, p) != 2 - turn*2)
+                        res.push({type: 'step', to : p})
+                }
+            }
+            else if(np.piece.player == bp.piece.player)
+            {
+                // Cannot push/pull allied piece
+            }
+            else if(bp.stronger(np) && own_piece || np.stronger(bp) && !own_piece)
+            {
+                let empties : Pos[] = this.free_squares(p)
+                if(empties.length > 0)
+                    res.push({type: 'pushpull', to: p, dest : empties})
+            }
+        }
+        return res
+    }
+
+    winner() : [Player] | false
+    {
+        for(let p of [Player.White, Player.Black])
+        {
+            let win_y : number = [7,0][p]
+
+            let rs = this.rabbits(p)
+            if(rs.length == 0)
+                return [opponent(p)]
+            for(let r of this.rabbits(p))
+            {
+                if(r.pos.y == win_y)
+                    return [p]
+            }
+            if(this.moveables(p).length == 0)
+                return [opponent(p)]
         }
         return false
     }
@@ -665,6 +798,16 @@ class Board
                 res.push([ap, s])
             }
         }
+        return res
+    }
+
+    free_squares(p : Pos) : Pos[]
+    {
+        let res = []
+        for(let ap of p.adjacent())
+            if(this.get(ap) == undefined)
+                res.push(ap)
+
         return res
     }
 
@@ -719,6 +862,43 @@ class Board
         return nothing_trapped
     }
 
+    dead(p : Player) : number[]
+    {
+        return p == Player.White ? this.dead_white : this.dead_black
+    }
+
+    /**
+     * Trap the piece at the position given by the input -
+     * Piece is marked as dead, removed from board, and its
+     * internal index is added to its dead piece-list
+     * @param t
+     */
+    trap(t : Trapped) : void
+    {
+        let i = t.pos.index()
+        let tp = <BoardPiece>this.board[i]
+        tp.alive = false
+        this.dead(t.piece.player).push(this.pieces.indexOf(tp))
+        this.set_i(i, undefined)
+    }
+
+    /**
+     * Revives a trapped piece to the board -
+     * Piece is marked as living, added back to board,
+     * index is removed from dead piece-list.
+     *
+     * THIS FUNCTION RELIES ON THE PIECES BEING REVIVED IN REVERSE
+     * ORDER OF BEING TRAPPED/KILLED
+     * @param t
+     */
+    untrap(t : Trapped)
+    {
+        let i : number = <number>this.dead(t.piece.player).pop()
+        let tp = this.pieces[i]
+        tp.alive = true
+        this.set(t.pos, tp)
+    }
+
     /**
      * Validate a move based on the current board and whose turn it is
      * @param m The move to validate
@@ -729,114 +909,151 @@ class Board
         return m.move.valid(this, turn)
     }
 
-    apply_move(m : Move)
+    apply_move(m : Move) : this
     {
+        m.move.apply(this)
+        return this
+    }
 
+    reverse_move(m : Move) : this
+    {
+        m.move.revert(this)
+        return this
     }
 
     to_json() : any[]
     {
-        return this.pieces.map((bp) => bp.to_json())
+        return [
+            this.pieces.map((bp) => bp.to_json()),
+            this.dead_white,
+            this.dead_black
+        ]
     }
 
     static from_json(l : any[]) : Board
     {
         let pieces = []
-        for(let n of l)
+        let ps = l[0]
+        for(let n of ps)
         {
             pieces.push(BoardPiece.from_json(n))
         }
-        return new Board(pieces)
+        return new Board(pieces, l[1], l[2])
+    }
+
+    copy() : Board
+    {
+        return Board.from_json(this.to_json())
     }
 
     clone(b : Board)
     {
-        throw "NotImplemented"
+        for(let i = 0; i < b.pieces.length; i++)
+        {
+            this.pieces[i].clone(b.pieces[0])
+        }
+        list_replace(this.dead_black, b.dead_black)
+        list_replace(this.dead_white, b.dead_white)
+    }
+
+    equals(b : Board) : boolean
+    {
+        if (b != undefined)
+        {
+            for(let i = 0; i < this.pieces.length; i++)
+            {
+                if(!this.pieces[i].equals(b.pieces[i]))
+                    return false
+            }
+        }
+        return b != undefined
     }
 }
+
+function list_replace<T>(a : T[], b : T[])
+{
+    a.splice(0, a.length, ...b)
+}
+
+// Game and server states
+
+enum State {SidePick, PieceSetup, WhitesTurn, BlacksTurn, WhiteWins, BlackWins}
 
 // Initial setup, move history, latest board.
 // Status or state
 class GameState
 {
+    move_history : Move[][]
+    board : Board
+    state : State
 
+    constructor()
+    {
+        this.board = Board.default_board()
+        this.move_history = []
+        this.state = State.SidePick
+    }
+
+    valid(moveset : Move[]) : boolean
+    {
+        if(moveset.length == 0 || this.state > State.BlacksTurn || this.state < State.WhitesTurn)
+            return false
+        let turn : Player = this.state == State.WhitesTurn ? Player.White : Player.Black
+        let cost = 0
+        let tmp_board = this.board.copy()
+        for(let m of moveset)
+        {
+            if(cost + m.move.cost > 4 || !tmp_board.valid_move(m, turn))
+                return false
+            tmp_board.apply_move(m)
+        }
+        // Board state must be changed after a move set
+        // TODO: Enforce no-more-than-n-repetition rule
+        return !tmp_board.equals(this.board)
+    }
+
+    // This should only be called after the validation has been run
+    apply(ms : Move[]) : void
+    {
+        this.move_history.push(ms)
+        for(let m of ms)
+        {
+            this.board.apply_move(m)
+        }
+        let w = this.board.winner()
+        if(w != false)
+        {
+            this.state = w[0] == Player.White ? State.WhiteWins : State.BlackWins
+        }
+    }
 }
 
 class TurnState
 {
+    base_board : Board
+    current_board : Board
+    move_buffer : Move[]
 
-}
-
-
-// Move this to a separate module - or a test module or something
-function test(a : any)
-{
-    let j1 = a.to_json()
-    let a2 = a.__proto__.constructor.from_json(j1)
-    if(JSON.stringify(j1) == JSON.stringify(a2.to_json()))
-        return true
-    else
-        return a.constructor.name + " Disparity: " + a.toString() + " != " + a2.toString()
-}
-
-function json_length(a : any)
-{
-    return JSON.stringify(a.to_json()).length
-}
-
-/*
-    Test values
-*/
-var p0 = new Piece(Player.White, Rank.Rabbit)
-var p1 = new Piece(Player.White, Rank.Dog)
-var p2 = new Piece(Player.Black, Rank.Horse)
-var p3 = new Piece(Player.Black, Rank.Elephant)
-var p4 = new Piece(Player.Black, Rank.Camel)
-
-var bp0 = new BoardPiece(p0, new Pos(0,0), false)
-var bp1 = new BoardPiece(p1, new Pos(3,4), true)
-var bp2 = new BoardPiece(p2, new Pos(2,3), true)
-var bp3 = new BoardPiece(p3, new Pos(7,7), true)
-var bp4 = new BoardPiece(p0, new Pos(7,7), false)
-
-var t1 = new Trapped(new Pos(2,5), p1)
-var t2 = new Trapped(new Pos(5,5), p3)
-var t3 = new Trapped(new Pos(2,2), p0)
-
-var st1 = new Step(p1, new Pos(3,4), Dir.North, nothing_trapped)
-var st2 = new Step(p2, new Pos(3,4), Dir.North, new Trapped(new Pos(2,2), p2))
-var st3 = new Step(p1, new Pos(3,4), Dir.North, new Trapped(new Pos(5,5), p2))
-var st4 = new Step(p0, new Pos(2,2), Dir.West, nothing_trapped)
-var st5 = new Step(p3, new Pos(6,5), Dir.West, new Trapped(new Pos(5,5), p4))
-
-var pp1 = new PushPull(p1, p2, new Pos(4, 5), Dir.North, Dir.South, [t1, nothing_trapped])
-var pp2 = new PushPull(p3, p1, new Pos(2,5), Dir.West, Dir.West, [nothing_trapped, t2])
-var pp3 = new PushPull(p3, p1, new Pos(6,5), Dir.West, Dir.West, [new Trapped(new Pos(2,2), p2), nothing_trapped])
-var pp4 = new PushPull(p3, p1, new Pos(6,5), Dir.West, Dir.West, [nothing_trapped, new Trapped(new Pos(2,5), p3)])
-var pp5 = new PushPull(p3, p1, new Pos(6,5), Dir.West, Dir.West, [new Trapped(new Pos(5,2), p1), new Trapped(new Pos(2,5), p3)])
-
-var m1 = new Move(st1)
-var m2 = new Move(pp3)
-
-var db = Board.default_board()
-
-let tests =
-[
-    p0, p1, p2, p3, p4,
-    bp0, bp1, bp2, bp3, bp4,
-    t1, t2, t3,
-    st1, st2, st3, st4, st5,
-    pp1, pp2, pp3, pp4, pp5,
-    db
-]
-
-function run_tests()
-{
-    for(let i of tests.map(test))
+    constructor(base : Board)
     {
-        console.log(i)
+        this.base_board = base
+        this.current_board = base.copy()
+        this.move_buffer = []
+    }
+
+    reset() : void
+    {
+        this.current_board.clone(this.base_board)
+        let mb = this.move_buffer
+        mb.splice(0, mb.length)
+    }
+
+    undo() : void
+    {
+        let m = this.move_buffer.pop()
+        if(m != undefined)
+        {
+            this.current_board.reverse_move(m)
+        }
     }
 }
-
-console.log("Running tests")
-run_tests()
