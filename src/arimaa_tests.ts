@@ -11,8 +11,15 @@ module Tests {
             return a.constructor.name + " Disparity: " + a.toString() + " != " + a2.toString()
     }
 
+    let tests_passed = 0
+    let tests_failed = 0
+
     function assert(test : boolean, msg : string)
     {
+        if(test)
+            tests_passed++
+        else
+            tests_failed++
         console.assert(test, msg)
     }
 
@@ -73,8 +80,29 @@ module Tests {
             db
         ]
 
+    function makeStep(bp : BoardPiece, dir : Dir, trapped : Trapped = nothing_trapped) : Move
+    {
+        return new Move(new Step(bp.piece, bp.pos, dir, trapped))
+    }
+
+    function move_val_apply(board : Board, m : Move, t : Player)
+    {
+        let test = board.valid_move(m, t)
+        if(test)
+        {
+            board.apply_move(m)
+            tests_passed++
+        }
+        else
+        {
+            tests_failed++
+            console.error(`Move not valid: ${m}`)
+        }
+    }
+
     function board_tests() : void
     {
+        assert(db.dead_white.length == db.dead_black.length && db.dead_white.length == 0, "No dead pieces in default board")
         let tb = db.copy() // tb = test board
         assert(tb.equals(db), "Copied board should equal its origin")
 
@@ -119,17 +147,18 @@ module Tests {
 
         assert(tb.valid_move(e_move, Player.Black), "Black elephant can roam south")
         tb.apply_move(e_move)
-        assert(tb.valid_move(e_move, Player.Black), "Black elephant can still move south")
-        assert(!tb.valid_move(e_move, Player.White), "Black elephant cannot be moved by white player")
-        tb.apply_move(e_move)
-        tb.apply_move(e_move)
-        tb.apply_move(e_move)
+        let ms = makeStep(be, Dir.South)
+        assert(tb.valid_move(ms, Player.Black), "Black elephant can still move south")
+        assert(!tb.valid_move(ms, Player.White), "Black elephant cannot be moved by white player")
+        tb.apply_move(makeStep(be, Dir.South))
+        tb.apply_move(makeStep(be, Dir.South))
+        tb.apply_move(makeStep(be, Dir.South)) // Black elephant is adjacent to white camel to the south
         assert(!tb.valid_move(e_move, Player.Black), "Black elephant cannot move south")
 
-        e_move.move.to = Dir.West
-        assert(tb.valid_move(e_move, Player.Black), "Black elephant can move west")
+        let mw = makeStep(be, Dir.West)
+        assert(tb.valid_move(mw, Player.Black), "Black elephant can move west")
 
-        tb.apply_move(e_move)
+        tb.apply_move(mw)
 
         let wm = <BoardPiece>tb.get_bp(new Pos(3, 1))
         assert(wm != undefined, "There is a white camel at 3x1")
@@ -172,18 +201,145 @@ module Tests {
         assert(moves.length == 2, "White camel can move north or south")
         moves = tb.moves(wm, Player.Black)
         assert(moves.length == 1 && moves[0].type == "pushpull", "White camel can be pulled by Black elephant")
+        let htrapped = new Trapped(new Pos(2,2), wh)
+        let pp = new PushPull(wm.piece, be.piece, wm.pos, Dir.West, Dir.North, [nothing_trapped, htrapped])
+        let pull_camel = new Move(pp)
+        assert(tb.valid_move(pull_camel, Player.Black), "The elephant can pull the camel, trapping the horse")
+        assert(!tb.valid_move(pull_camel, Player.White), "The camel cannot push the elephant!")
 
+        assert(tb.dead_white.length == 0, "There are no dead white pieces")
+        tb.apply_move(pull_camel)
+        assert(tb.get(new Pos(2,2)) == undefined, "The trap should now be empty")
+        assert(tb.dead_white.length == 1, "Dead horse should be accounted for")
+        assert(!tb.frozen(wm), "Camel, though pulled, is not frozen")
+
+        move_val_apply(tb, makeStep(wm, Dir.East), Player.White)
+        move_val_apply(tb, makeStep(wm, Dir.North), Player.White)
+
+        move_val_apply(tb, makeStep(<BoardPiece>tb.get_bp(new Pos(3,0)), Dir.North), Player.White)
+        move_val_apply(tb, makeStep(<BoardPiece>tb.get_bp(new Pos(3,1)), Dir.North), Player.White)
+
+        move_val_apply(tb, makeStep(wm, Dir.North), Player.White)
+        move_val_apply(tb, makeStep(wm, Dir.North), Player.White)
+
+        let pp2 = new PushPull(br, wm.piece, new Pos(3,6), Dir.South, Dir.South, [nothing_trapped, nothing_trapped])
+        move_val_apply(tb, new Move(pp2), Player.White)
+
+        let pp3 = new PushPull(wm.piece, br, wm.pos, Dir.North, Dir.North, [nothing_trapped, nothing_trapped])
+        move_val_apply(tb, new Move(pp3), Player.White)
+        move_val_apply(tb, new Move(pp2), Player.White)
+
+        move_val_apply(tb, makeStep(be, Dir.North, nothing_trapped), Player.Black)
+
+        assert(!tb.valid_move(new Move(pp3), Player.White), "Frozen camels cannot pull")
+
+        // Board equality checks
+        let tbcopy = tb.copy()
+
+        let rc1 = <BoardPiece>tbcopy.get_bp(new Pos(0,7))
+        let rc2 = <BoardPiece>tbcopy.get_bp(new Pos(7,7))
+
+        let r1 = tb.get_bp(new Pos(0,7))
+        let r2 = tb.get_bp(new Pos(7,7))
+
+        assert(r1 != r2, "The two copied rabbits should not be the same")
+        assert(r1 != rc1 && r2 != rc2, "The original and copied rabbits should not be the same")
+        assert(tb.equals(tbcopy), "Copied board should equal the original")
+
+        rc1.pos.clone(new Pos(7,7))
+        rc2.pos.clone(new Pos(0,7))
+        tbcopy.set(rc1.pos,rc1)
+        tbcopy.set(rc2.pos,rc2)
+
+        assert(tbcopy.equals(tb), "Copied board should still equal the original")
+
+        // Unfreeze the camel and do some "moves" tests
+        move_val_apply(tb, makeStep(be, Dir.West, nothing_trapped), Player.Black)
+        assert(!tb.frozen(wm), "Camel is no longer frozen")
+
+    }
+
+    export function timing_test() : void
+    {
+        let tbcopy = db.copy()
+        let before = Date.now()
+        let res = false
+        for(let i = 0; i < 100000; i++)
+        {
+            res = tbcopy.equals(db)
+        }
+        let after = Date.now()
+
+        console.info(`TIME: ${after - before}ms`)
+    }
+
+
+    // Generate random boards - not guaranteed to be valid board states w.r.t traps etc.
+    export function random_board() : Board
+    {
+        let db = Board.default_board()
+        db.board = []
+        db.board.length=64
+        for(let o of db.pieces)
+        {
+            if(Math.random() < 0.2)
+                o.alive=false
+            else
+            {
+                let i;
+                do i = Math.round(Math.random()*63)
+                    while(db.board[i]!=undefined)
+                o.pos.clone(Pos.from_index(i))
+                db.board[i] = o
+            }
+        }
+        return db
+    }
+
+    export function hash_test() : any
+    {
+        let res : [Board, number][] = []
+
+        let t_no = 5000
+
+        for(let i = 0; i < t_no; i++)
+        {
+            let b = random_board()
+            let h = b.hash()
+            let s = res[h]
+            if(s == undefined)
+                res[h] = [b, 0]
+            else
+            {
+                let [bb, duplis] = s
+                if(!bb.equals(b))
+                    s[1]++
+            }
+        }
+        let duplis = 0
+        for(let i of Object.keys(res))
+        {
+            duplis += (<any>res)[i][1]
+        }
+        console.log(`Duplicate hashes: up to ${duplis} (${100*(1 - duplis/t_no)}% unique)`)
     }
 
     export function run_tests() : void {
 
+        // Reset error count
+        tests_passed = tests_failed = 0
+
         // Basic conversion tests - converting back and forth should yield identical objects
         for (let i of basic_structures.map(json_string_test)) {
             if(i != true)
-                console.error(i)
+                {console.error(i); tests_failed++}
+            else
+                tests_passed++
         }
-
         board_tests()
+        console.info(`Tests passed: (${tests_passed}/${tests_failed + tests_passed})`)
+        if(tests_failed != 0)
+            console.error(`${tests_failed} tests failed!`)
     }
-
+    run_tests()
 }
