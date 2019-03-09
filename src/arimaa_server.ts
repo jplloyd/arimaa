@@ -1,13 +1,43 @@
+import { request, connection, server, IMessage } from "websocket";
+
 const WebSocketServer = require('websocket').server;
 const http = require('http');
 
 const SERVER_PORT = 3000
 
+// TEMP - property printing
+function log_circular(ob: any) {
+    var cache: any[] = []
+    function render(key: any, value: any) {
+        if (typeof value === 'object' && value !== null) {
+            if (cache.indexOf(value) !== -1) {
+                // Duplicate reference found
+                try {
+                    // If this value does not reference a parent it can be deduped
+                    return JSON.parse(JSON.stringify(value));
+                } catch (error) {
+                    // discard key if value cannot be deduped
+                    return;
+                }
+            }
+            // Store value in our collection
+            cache.push(value);
+        }
+        return value;
+    }
+
+    console.log(ob, render, 2)
+}
+
+
 class Server
 {
     http_server : any
-    ws_server : any
-    clients : any[] = []
+    ws_server : server
+    clients : connection[] = []
+
+    // Consider extending this
+    game_server : GameSession
 
     constructor(port : number)
     {
@@ -20,33 +50,41 @@ class Server
         this.close_connection = this.close_connection.bind(this)
         this.request_handler = this.request_handler.bind(this)
         this.ws_server.on('request', this.request_handler)
+
+        this.game_server = new GameSession(new GameState())
+        console.log("{ Server started }")
     }
 
-    message_handler(message : any) : void
+    message_handler(message : IMessage) : void
     {
-        console.log(`Message received`)
+        console.log(`<< Message received >>`)
+        log_circular(message)
     }
 
-    request_handler(request : any) : void
+    request_handler(request : request) : void
     {
-        console.log("Incoming connection")
+        console.log("== Incoming connection ==")
+        log_circular(request);
 
-        var conn = request.accept(null, request.origin)
+        var conn = request.accept(undefined, request.origin)
         this.clients.push(conn)
 
         conn.on('message', this.message_handler)
-        conn.on('close', function(c : any){console.log("Closing connection")})
+        //function(c : any){console.log("Closing connection")}
+        conn.on('close', this.close_connection(conn))
     }
 
-    close_connection(c : any)
+    close_connection(c : connection)
     {
         let server = this
         return function()
         {
+            server.game_server
+
             let i = server.clients.indexOf(c)
             if(i != -1)
             {
-                console.log(`Closing connection (${i})`)
+                console.log(`** Closing connection (${i}) **`)
                 server.clients.splice(i, 1)
             }
         }
@@ -55,18 +93,44 @@ class Server
 
 var s = new Server(3000)
 
+type SideEntry = Maybe<{identifier : string, connection : connection}>
+
 class GameSession
 {
     gs : GameState
-    ws : any
+    side : {white : SideEntry, black : SideEntry}
 
     // Any time a valid destructive move set is applied, clear the history
+    // A destructive move is one where one or more pieces are trapped
     board_history : {board : Board, turn : Player, occurences : number}[][] = []
-    clients : any[] = []
 
     constructor(gs : GameState)
     {
         this.gs = gs
+        this.side = {white : undefined, black : undefined}
+    }
+
+    state () : State
+    {
+        return this.gs.state
+    }
+
+    set_state(s : State)
+    {
+        this.gs.state = s
+    }
+
+    destructive(ms : Move[]) : boolean
+    {
+        for(let m of ms)
+        {
+            let t = m.move.trapped
+            if(t instanceof Trapped && t.occupied)
+                return true
+            else if(!(t instanceof Trapped) && (t[0].occupied || t[1].occupied))
+                return true
+        }
+        return false
     }
 
     /**
@@ -75,9 +139,9 @@ class GameSession
      */
     valid(moveset : Move[]) : boolean
     {
-        if(moveset.length == 0 || this.gs.state > State.BlacksTurn || this.gs.state < State.WhitesTurn)
+        if(moveset.length == 0 || this.state() > State.BlacksTurn || this.state() < State.WhitesTurn)
             return false
-        let turn : Player = this.gs.state == State.WhitesTurn ? Player.White : Player.Black
+        let turn : Player = this.state() == State.WhitesTurn ? Player.White : Player.Black
         let cost = 0
         let tmp_board = this.gs.board.copy()
         for(let m of moveset)
