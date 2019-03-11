@@ -554,20 +554,21 @@ type MoveInfo = StepInfo | PPInfo
 class BoardSetup
 {
     player : Player
-    pieces : [Pos, Rank][]
+    pieces : [number, Pos, Rank][] = []
 
-    constructor(p : Player, pieces : [Pos, Rank][])
+    constructor(player : Player, pieces : [number, Pos, Rank][])
     {
-        this.player = p
+        this.player = player
         this.pieces = pieces
     }
 
     static from_board(player : Player, board : Board) : BoardSetup
     {   
-        let pc : [Pos, Rank][] = []
+        let pc : [number, Pos, Rank][] = []
         for (let bp of board.pieces)
         {
-            pc.push([bp.pos, bp.piece.rank])
+            if(bp.piece.player == player)
+                pc.push([board.pieces.indexOf(bp), bp.pos, bp.piece.rank])
         }
         return new BoardSetup(player, pc)
     }
@@ -576,7 +577,7 @@ class BoardSetup
     {
         let str = ''
         let pc = new Piece(this.player, 0)
-        for(let [p, r] of this.pieces)
+        for(let [_, p, r] of this.pieces)
         {
             pc.rank = r
             str += `${pc}${p} `
@@ -586,17 +587,17 @@ class BoardSetup
 
     to_json() : any[]
     {
-        let pcs = this.pieces.map(([p, r]) => p.index() << 3 | r)
+        let pcs = this.pieces.map(([i, p, r]) => [i, p.index(), r])
         return [this.player, pcs]
     }
 
     static from_json(l : any[]) : BoardSetup
     {
-        let f = function(n : number) : [Pos, Rank]
+        let f = function(pars : any[]) : [number, Pos, Rank]
         {
-            return [Pos.from_index(n >> 3), n & 7]
+            return [pars[0], Pos.from_index(pars[1]), pars[2]]
         }
-        let pc : [Pos, Rank][] = l.map(f)
+        let pc : [number, Pos, Rank][] = l[1].map(f)
         return new BoardSetup(l[0], pc)
     }
 }
@@ -615,10 +616,18 @@ class Board
 
     constructor(pieces : BoardPiece[], dead_white : number[], dead_black : number[])
     {
+        this.pieces = pieces
+        this.board = []
+        this.recalc_board()
+        this.dead_white = dead_white
+        this.dead_black = dead_black
+    }
+
+    recalc_board()
+    {
         this.board = []
         this.board.length = 64
 
-        this.pieces = pieces
         for (let p of this.pieces)
         {
             if (p.alive)
@@ -626,9 +635,8 @@ class Board
                 this.board[p.pos.index()] = p
             }
         }
-        this.dead_white = dead_white
-        this.dead_black = dead_black
     }
+
 
     /**
      * Constructs a board with a basic setup of pieces - rabbits at the back
@@ -652,6 +660,17 @@ class Board
             }
         }
         return new Board(pieces, [] ,[])
+    }
+
+    setup(b : BoardSetup)
+    {
+        for(let [i, p, _] of b.pieces)
+        {
+            let bp = this.pieces[i]
+            bp.pos.clone(p)
+            bp.alive = true
+            this.set(p, bp) // No need to recalculate board
+        }
     }
 
     /**
@@ -730,13 +749,13 @@ class Board
         return false
     }
 
-    rabbits(p : Player)
+    rabbits(p : Player) : BoardPiece[]
     {
         return this.pieces.filter(bp => bp.alive && bp.piece.rank == Rank.Rabbit && bp.piece.player == p)
     }
 
     // Pieces that can be moved by the given player
-    moveables(p : Player)
+    moveables(p : Player) : BoardPiece[]
     {
         return this.pieces.filter(bp =>
             bp.alive && bp.piece.player == p && this.moves(bp, p).length > 0
@@ -962,8 +981,9 @@ class Board
     {
         for(let i = 0; i < b.pieces.length; i++)
         {
-            this.pieces[i].clone(b.pieces[0])
+            this.pieces[i].clone(b.pieces[i])
         }
+        this.recalc_board()
         list_replace(this.dead_black, b.dead_black)
         list_replace(this.dead_white, b.dead_white)
     }
@@ -1009,21 +1029,33 @@ function list_replace<T>(a : T[], b : T[])
 
 // Game and server states
 
-enum State {SidePick, PieceSetup, WhitesTurn, BlacksTurn, WhiteWins, BlackWins}
+enum State {
+    PreGame,
+    SidePick,
+    PieceSetup,
+    // Send entire game state upon request
+    WhitesTurn,
+    BlacksTurn,
+    WhiteWins,
+    BlackWins}
 
 // Initial setup, move history, latest board.
 // Status or state
 class GameState
 {
+    black_setup : Maybe<BoardSetup>
+    white_setup : Maybe<BoardSetup>
     move_history : Move[][]
     board : Board
     state : State
+    winner : Maybe<Player>
 
     constructor()
     {
         this.board = Board.default_board()
         this.move_history = []
         this.state = State.SidePick
+        this.winner = undefined
     }
 
     // This should only be called after the validation has been run
@@ -1038,7 +1070,40 @@ class GameState
         if(w != false)
         {
             this.state = w[0] == Player.White ? State.WhiteWins : State.BlackWins
+            this.winner = w[0]
         }
+        else
+        {
+            this.state = this.state == State.WhitesTurn ? State.BlacksTurn : State.WhitesTurn
+        }
+    }
+
+    static from_json(l : any[]) : GameState
+    {
+        let gs = new GameState()
+        gs.state = l[0]
+        gs.board = Board.from_json(l[1])
+        let mh : any[][] = l[2]
+        gs.move_history = mh.map(l => l.map(m => Move.from_json(m)))
+        let ws = l[3]
+        let bs = l[4]
+        gs.white_setup = ws != 0 ? BoardSetup.from_json(ws) : undefined
+        gs.black_setup = bs != 0 ? BoardSetup.from_json(bs) : undefined
+        let w = l[5]
+        gs.winner = w == 0 ? undefined : w-1
+        return gs
+    }
+
+    to_json() : any[]
+    {
+        return [
+            this.state,
+            this.board.to_json(),
+            this.move_history.map(l => l.map(m => m.to_json())),
+            this.white_setup ? this.white_setup.to_json() : 0,
+            this.black_setup ? this.black_setup.to_json() : 0,
+            this.winner == undefined ? 0 : this.winner+1
+        ]
     }
 }
 
@@ -1070,6 +1135,19 @@ class TurnState
             this.current_board.reverse_move(m)
         }
     }
+}
+
+enum Msg {
+    // Messages sent from client
+    StateRequest,
+    SideChoice,
+    PieceSetup,
+    MoveSet,
+    // Messages sent from server
+    StateUpdate,
+    InvalidMove,
+    Error,
+    HardReset
 }
 
 /**
