@@ -1,18 +1,24 @@
 // Basic consistency tests, unit tests, integration tests, written plain
 module Tests {
 
+    let tests_passed = 0
+    let tests_failed = 0
+
     // Move this to a separate module - or a test module or something
     function json_string_test(a: any) {
         let j1 = a.to_json()
         let a2 = a.__proto__.constructor.from_json(j1)
         if (JSON.stringify(j1) == JSON.stringify(a2.to_json()))
+        {
+            tests_passed++
             return true
+        }
         else
+        {
+            tests_failed++
             return a.constructor.name + " Disparity: " + a.toString() + " != " + a2.toString()
+        }
     }
-
-    let tests_passed = 0
-    let tests_failed = 0
 
     function assert(test : boolean, msg : string)
     {
@@ -65,6 +71,8 @@ module Tests {
 
     var db = Board.default_board()
 
+    var gs = new GameState()
+
     var wh = new Piece(Player.White, Rank.Horse)
     var wc = new Piece(Player.White, Rank.Cat)
 
@@ -77,7 +85,7 @@ module Tests {
             st0, st1, st2, st3, st4, st5,
             pp1, pp2, pp3, pp4, pp5,
             m1, m2,
-            db
+            db, gs
         ]
 
     function makeStep(bp : BoardPiece, dir : Dir, trapped : Trapped = nothing_trapped) : Move
@@ -257,6 +265,20 @@ module Tests {
         move_val_apply(tb, makeStep(be, Dir.West, nothing_trapped), Player.Black)
         assert(!tb.frozen(wm), "Camel is no longer frozen")
 
+        let gss = new GameState()
+        gss.board.clone(tb)
+
+        assert(gss.board.equals(tb), "Cloned board should equal its origin")
+
+        json_string_test(gss)
+
+        let bs1 = BoardSetup.from_board(Player.Black, tb)
+        let bs2 = BoardSetup.from_board(Player.White, tb)
+        gss.black_setup = bs1
+        gss.white_setup = bs2
+
+        json_string_test(gss)
+
     }
 
     export function timing_test() : void
@@ -332,9 +354,7 @@ module Tests {
         // Basic conversion tests - converting back and forth should yield identical objects
         for (let i of basic_structures.map(json_string_test)) {
             if(i != true)
-                {console.error(i); tests_failed++}
-            else
-                tests_passed++
+                console.error(i);
         }
         board_tests()
         console.info(`Tests passed: (${tests_passed}/${tests_failed + tests_passed})`)
