@@ -1,3 +1,4 @@
+//import Vue as Vue from "vue/types/vue"
 /* Alternative implementation of arimaa */
 
 /* ------------- Basics --------------- */
@@ -5,6 +6,8 @@
 enum Player {White, Black}
 enum Rank {Rabbit, Cat, Dog, Horse, Camel, Elephant}
 enum Dir {North, East, South, West}
+
+enum SideChoice {White, Black, DontCare}
 
 function invert(d : Dir) : Dir
 {
@@ -128,6 +131,15 @@ class Piece
     toString() : string
     {
         return "RCDHMErcdhme"[this.player*6 + this.rank]
+    }
+
+    class() : string
+    {
+        let s = this.toString()
+        if(s.toLowerCase() == s)
+            return s+"_"
+        else
+            return s
     }
 
     stronger(p : Piece) : boolean
@@ -560,6 +572,11 @@ class BoardSetup
     {
         this.player = player
         this.pieces = pieces
+    }
+
+    copy() : BoardSetup
+    {
+        return BoardSetup.from_json(this.to_json())
     }
 
     static from_board(player : Player, board : Board) : BoardSetup
@@ -1030,6 +1047,7 @@ function list_replace<T>(a : T[], b : T[])
 // Game and server states
 
 enum State {
+    Unknown,
     PreGame,
     SidePick,
     PieceSetup,
@@ -1037,7 +1055,8 @@ enum State {
     WhitesTurn,
     BlacksTurn,
     WhiteWins,
-    BlackWins}
+    BlackWins
+}
 
 // Initial setup, move history, latest board.
 // Status or state
@@ -1054,8 +1073,19 @@ class GameState
     {
         this.board = Board.default_board()
         this.move_history = []
-        this.state = State.SidePick
+        this.state = State.PreGame
         this.winner = undefined
+    }
+
+    clone(gs : GameState) : void
+    {
+        console.warn("Potentially unsafe clone operation (move history in game state)")
+        this.white_setup = gs.white_setup == undefined ? undefined : gs.white_setup.copy()
+        this.black_setup = gs.black_setup == undefined ? undefined : gs.black_setup.copy()
+        list_replace(this.move_history, gs.move_history.map(l => l.map(m => Move.from_json(m.to_json()))))
+        this.board.clone(gs.board)
+        this.state = gs.state
+        this.winner = gs.winner
     }
 
     // This should only be called after the validation has been run
@@ -1107,36 +1137,6 @@ class GameState
     }
 }
 
-class TurnState
-{
-    base_board : Board
-    current_board : Board
-    move_buffer : Move[]
-
-    constructor(base : Board)
-    {
-        this.base_board = base
-        this.current_board = base.copy()
-        this.move_buffer = []
-    }
-
-    reset() : void
-    {
-        this.current_board.clone(this.base_board)
-        let mb = this.move_buffer
-        mb.splice(0, mb.length)
-    }
-
-    undo() : void
-    {
-        let m = this.move_buffer.pop()
-        if(m != undefined)
-        {
-            this.current_board.reverse_move(m)
-        }
-    }
-}
-
 enum Msg {
     // Messages sent from client
     StateRequest,
@@ -1144,31 +1144,9 @@ enum Msg {
     PieceSetup,
     MoveSet,
     // Messages sent from server
+    StateSend,
     StateUpdate,
     InvalidMove,
     Error,
     HardReset
-}
-
-/**
- * Handles connection to the server and interchange of messages with callbacks
- */
-class Client
-{
-
-}
-
-// Vue state object
-let gui_ob =
-{
-    el : "",
-    // Basic data objects
-    data : {
-        gs : new GameState()
-    },
-    // Computed methods
-    computed : {
-
-    },
-    methods : {}
 }
