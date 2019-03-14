@@ -1049,6 +1049,7 @@ function list_replace<T>(a : T[], b : T[])
 enum State {
     Unknown,
     PreGame,
+    Waiting,
     SidePick,
     PieceSetup,
     // Send entire game state upon request

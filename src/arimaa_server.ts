@@ -1,11 +1,12 @@
 import { request, connection, server, IMessage } from "websocket";
+//import {Msg, Maybe, GameState, Board, BoardSetup, State, Player, Move, Trapped} from "./arimaa_alt"
+
 
 const WebSocketServer = require('websocket').server;
 const http = require('http');
 
-const SERVER_PORT = 3000
+// Helper / debug functions
 
-// TEMP - property printing
 function log_circular(ob: any) {
     var cache: any[] = []
     function render(key: any, value: any) {
@@ -29,76 +30,44 @@ function log_circular(ob: any) {
     console.log(ob, render, 2)
 }
 
-
-class Server
+function info(s : string) : void
 {
-    http_server : any
-    ws_server : server
-    clients : connection[] = []
-
-    // Consider extending this
-    game_server : GameSession
-
-    constructor(port : number)
-    {
-        this.http_server = http.createServer()
-        this.http_server.listen(port)
-
-        this.ws_server = new WebSocketServer({httpServer : this.http_server})
-
-        this.message_handler = this.message_handler.bind(this)
-        this.close_connection = this.close_connection.bind(this)
-        this.request_handler = this.request_handler.bind(this)
-        this.ws_server.on('request', this.request_handler)
-
-        this.game_server = new GameSession(new GameState())
-        console.log("{ Server started }")
-    }
-
-    message_handler(message : IMessage) : void
-    {
-        console.log(`<< Message received >>`)
-        log_circular(message)
-    }
-
-    request_handler(request : request) : void
-    {
-        console.log("== Incoming connection ==")
-        log_circular(request);
-
-        var conn = request.accept(undefined, request.origin)
-        this.clients.push(conn)
-
-        conn.on('message', this.message_handler)
-        //function(c : any){console.log("Closing connection")}
-        conn.on('close', this.close_connection(conn))
-    }
-
-    close_connection(c : connection)
-    {
-        let server = this
-        return function()
-        {
-            server.game_server
-
-            let i = server.clients.indexOf(c)
-            if(i != -1)
-            {
-                console.log(`** Closing connection (${i}) **`)
-                server.clients.splice(i, 1)
-            }
-        }
-    }
+    console.log('\x1b[92m'+s+'\x1b[0m')
 }
 
-var s = new Server(3000)
+function error(s : string) : void
+{
+    console.log('\x1b[31m'+s+'\x1b[0m')
+}
 
-type SideEntry = Maybe<{identifier : string, connection : connection}>
+function warning(s : string) : void
+{
+    console.log('\x1b[93m'+s+'\x1b[0m')
+}
 
+// End of helper functions
+
+interface Message
+{
+    type : Msg
+}
+
+type SideEntry = Maybe<{id : string, connection : Maybe<connection>}>
+
+/**
+ * Maintains information about sides, connections
+ * and board history (to verify state reoccurences)
+ *
+ * Handles game messages and state updates
+ */
 class GameSession
 {
     gs : GameState
     side : {white : SideEntry, black : SideEntry}
+    conns : connection[] = []
+
+    piece_setups : {white : Maybe<BoardSetup>, black : Maybe<BoardSetup>}
+    side_choices : [connection, SideChoice][] = []
 
     // Any time a valid destructive move set is applied, clear the history
     // A destructive move is one where one or more pieces are trapped
@@ -108,6 +77,7 @@ class GameSession
     {
         this.gs = gs
         this.side = {white : undefined, black : undefined}
+        this.piece_setups = {white : undefined, black : undefined}
     }
 
     state () : State
@@ -120,6 +90,11 @@ class GameSession
         this.gs.state = s
     }
 
+    /**
+     * Returns true of the move set is destructive, meaning that at least
+     * one piece is trapped, preventing any previous state from reoccuring
+     * @param ms Set of moves to check
+     */
     destructive(ms : Move[]) : boolean
     {
         for(let m of ms)
@@ -186,8 +161,335 @@ class GameSession
         }
     }
 
-    handle(msg : any) : void
+    send(conn : connection | Player, type : Msg, data : any)
     {
+        if(typeof conn == "number")
+        {
+            if(conn == Player.White && this.side.white && this.side.white.connection)
+                conn = this.side.white.connection
+            else if(conn == Player.Black && this.side.black && this.side.black.connection)
+                conn = this.side.black.connection
+            else
+                warning(`Failed to send message to ${Player[conn]}`)
+        }
+        if(conn instanceof connection)
+            conn.sendUTF(JSON.stringify({type: type, data: data}))
+        else
+            warning(`Invalid connection for message: ${Msg[type]}, ${data}`)
+    }
 
+    send_state(conn : connection)
+    {
+        let data : any = {state: this.state()}
+        if(this.state() > State.SidePick)
+        {
+             // Verify that the request is coming from a registered connection
+            if(this.side.white && this.side.white.connection == conn)
+                data.side = Player.White
+            else if(this.side.black && this.side.black.connection == conn)
+                data.side = Player.Black
+            else
+            {
+                warning("Status requested from connection not registered to a side")
+                return
+            }
+        }
+
+        switch(this.state())
+        {
+            case State.PreGame:
+            case State.SidePick:
+                this.send(conn, Msg.StateSend, data)
+                break
+            case State.PieceSetup:
+                if(this.side.black && this.side.black.connection == conn && this.piece_setups.white)
+                    data.setup = this.piece_setups.white.to_json()
+                this.send(conn, Msg.StateSend, data)
+            break
+            case State.WhitesTurn:
+            case State.BlacksTurn:
+            case State.WhiteWins:
+            case State.BlackWins:
+                data.gamestate = this.gs.to_json()
+                this.send(conn, Msg.StateSend, data)
+                break
+            default:
+                throw "Game state invalid"
+        }
+    }
+
+    handle_side_choice(conn : connection, choice : SideChoice)
+    {
+        if(this.state() != State.SidePick)
+        {
+            warning("Received side choice message when not in side pick mode")
+            return
+        }
+
+        let add = true
+        for(let entry of this.side_choices)
+        {
+            if(entry[0] == conn) // Modify this for local testing
+            {
+                entry[1] = choice
+                add = false
+                break
+            }
+        }
+        if(add)
+            this.side_choices.push([conn, choice])
+        // If both players have chosen their preference, decide
+        if(this.side_choices.length == 2)
+        {
+            let [c1, sc1] = this.side_choices[0]
+            let [c2, sc2] = this.side_choices[1]
+            let white : connection
+            let black : connection
+
+            if(sc1 == sc2)
+                [white, black] = Math.random() > 0.5 ? [c1, c2] : [c2, c1]
+            else if(sc1 == SideChoice.White || sc2 == SideChoice.Black)
+                [white, black] = [c1, c2]
+            else
+                [white, black] = [c2, c1]
+
+            this.side.white = {id : white.remoteAddress, connection: white}
+            this.side.black = {id : black.remoteAddress, connection: black}
+
+            info("Both players have chosen their sides - moving on to setup")
+            this.set_state(State.PieceSetup)
+
+            let white_msg = {state: this.state(), side : Player.White}
+            let black_msg = {state: this.state(), side : Player.Black}
+
+            this.send(white, Msg.StateUpdate, white_msg)
+            this.send(black, Msg.StateUpdate, black_msg)
+        }
+    }
+
+    handle_piece_setup(conn : connection, message : Message & any)
+    {
+        if(this.state() != State.PieceSetup)
+        {
+            warning("Received piece setup message when not in piece setup state")
+            return
+        }
+        let setup : BoardSetup = BoardSetup.from_json(message.data)
+        // TODO: Add validation
+
+        if(this.side.white!.connection == conn)
+        {
+            this.piece_setups.white = setup
+            this.send(Player.Black, Msg.PieceSetup, {setup : message.data})
+        }
+        else if(this.side.black!.connection == conn)
+            this.piece_setups.black = setup
+
+        if(this.piece_setups.white && this.piece_setups.black)
+        {
+            info("Both piece setups have been received")
+
+            this.gs.board.setup(this.piece_setups.white)
+            this.gs.board.setup(this.piece_setups.black)
+
+            this.gs.white_setup = this.piece_setups.white
+            this.gs.black_setup = this.piece_setups.black
+
+            this.set_state(State.WhitesTurn)
+
+            info("Sending black player's setup to white player")
+            this.send(Player.White, Msg.PieceSetup, {setup : this.gs.black_setup.to_json()})
+
+            info("Beginning the game - notifying clients")
+            this.send(Player.White, Msg.StateUpdate, {state: State.WhitesTurn, black_setup : this.piece_setups.black.to_json()})
+            this.send(Player.Black, Msg.StateUpdate, {state: State.WhitesTurn})
+        }
+    }
+
+    handle_move_set(conn : connection, message : Message & any)
+    {
+        let s = this.state()
+        if(s < State.WhitesTurn || s > State.BlacksTurn)
+        {
+            warning("Received move set when game is not ongoing")
+            return
+        }
+        let sd = this.side
+        let valid_conn = s == State.WhitesTurn ? sd.white!.connection : sd.black!.connection
+        if(conn != valid_conn)
+        {
+            warning("Received move set from player whose turn it is not!")
+            return
+        }
+
+        let ms_json : any[] = message.data
+        let ms : Move[] = ms_json.map(m => Move.from_json(m))
+
+        if(this.valid(ms))
+        {
+            info("Received valid move set, updating state")
+            this.gs.apply(ms)
+            if(this.gs.state >= State.WhiteWins)
+            {
+                info("<< Winning move has been made! >>")
+            }
+            this.send(conn, Msg.StateUpdate, {state: this.gs.state})
+            let other : connection = s == State.WhitesTurn ? sd.black!.connection! : sd.white!.connection!
+            this.send(other, Msg.StateUpdate, {state: this.gs.state, move_set: ms_json})
+        }
+        else
+        {
+            this.send(conn, Msg.Error, {message : "Invalid move set"})
+        }
+    }
+
+    handle_message(conn : connection, message : Message & any) : void
+    {
+        try
+        {
+            switch (message.type) {
+                case Msg.StateRequest:
+                    if (this.state() > State.SidePick) {
+                        let s = this.side
+                        if (s.black != undefined && s.black.connection == undefined && s.black.id == conn.remoteAddress)
+                            s.black.connection = conn
+                        else if (s.white != undefined && s.white.connection == undefined && s.white.id == conn.remoteAddress)
+                            s.white.connection = conn
+                    }
+                    if(this.state() == State.PreGame && this.conns.length > 1)
+                    {
+                        this.gs.state = State.SidePick
+                        for(let c of this.conns)
+                        {
+                            this.send_state(c)
+                        }
+                    }
+                    else
+                        this.send_state(conn)
+                    break
+                case Msg.SideChoice:
+                    let choice = message.data
+                    if(choice > SideChoice.DontCare || choice < SideChoice.White)
+                        throw "Invalid side choice data"
+                    this.handle_side_choice(conn, choice)
+                    break;
+                case Msg.PieceSetup:
+                    this.handle_piece_setup(conn, message)
+                    break
+                case Msg.MoveSet:
+                    this.handle_move_set(conn, message)
+                    break
+                default:
+                    warning(`Received unhandleable message w type: ${Msg[message.type]}`)
+            }
+        } catch(e){
+            error(`Error when handling message: ${e}`)
+        }
+    }
+
+    /**
+     * Handle sides etc
+    */
+    close_connection(conn : connection, code : number, desc : string)
+    {
+        // If the connection is already associated to a side, unset it
+        if(this.side.white && this.side.white.connection == conn)
+            this.side.white.connection = undefined
+        else if(this.side.black && this.side.black.connection == conn)
+            this.side.black.connection = undefined
+
+        // Clear existing side choices
+        for(let i = 0; i < this.side_choices.length; i++)
+        {
+            if(this.side_choices[i][0] == conn)
+            {
+                this.side_choices.splice(i,1)
+                break;
+            }
+        }
     }
 }
+
+class Server
+{
+    http_server : any
+    ws_server : server
+    clients : connection[] = []
+
+    // Consider extending this
+    session : GameSession
+
+    constructor(port : number)
+    {
+        this.http_server = http.createServer()
+        this.http_server.listen(port)
+
+        this.ws_server = new WebSocketServer({httpServer : this.http_server})
+
+        this.message_handler = this.message_handler.bind(this)
+        this.close_connection = this.close_connection.bind(this)
+        this.request_handler = this.request_handler.bind(this)
+        this.ws_server.on('request', this.request_handler)
+
+        let gs = new GameState()
+        gs.state = State.PreGame
+        this.session = new GameSession(gs)
+        info("{ Server started }")
+    }
+
+    message_handler(conn : connection)
+    {
+        let server = this
+        return function(message : IMessage)
+        {
+            info(`<< Message received from ${conn.remoteAddress} >>`)
+            // Verify and parse message
+            if(message.type == "utf8" && typeof message.utf8Data == "string")
+            {
+                try {
+                    let msg = JSON.parse(message.utf8Data)
+                    //console.log(`Message - raw: ${message.utf8Data}, parsed: ${Object.keys(msg)}`)
+                    if ("type" in msg)
+                        server.session.handle_message(conn, msg)
+                    else
+                        throw "Received message without type parameter!"
+                }
+                catch(e)
+                {
+                    error(`Error when handling message: ${e}`)
+                }
+            }
+        }
+    }
+
+    request_handler(request : request) : void
+    {
+        info(`== Incoming connection from ${request.remoteAddress} ==`)
+        //log_circular(request);
+
+        var conn = request.accept(undefined, request.origin)
+        this.clients.push(conn)
+        info(`Number of connections: ${this.clients.length}`)
+        this.session.conns.push(conn)
+
+        conn.on('message', this.message_handler(conn))
+        conn.on("close", this.close_connection(conn))
+    }
+
+    close_connection(c : connection) : (c : number, desc : string) => void
+    {
+        let server = this
+        return function(code : number, desc : string) : void
+        {
+            let i = server.clients.indexOf(c)
+            if(i != -1)
+            {
+                info(`** Closing connection from ${c.remoteAddress} : (${code}, ${desc}) **`)
+                server.session.close_connection(c, code, desc)
+                server.clients.splice(i, 1)
+            }
+        }
+    }
+}
+
+var s = new Server(3000)

@@ -6,6 +6,7 @@ body
     padding:0px;
     max-width:100%;
     background-color:#160707;
+    font-size:1.2em;
 }
 
 .board
@@ -72,6 +73,14 @@ body
     background-size:600% 200%;
 }
 
+.ambiv
+{
+    background-image:url(img/ambiv.svg);
+    background-size:100% 100%;
+    background-position:center;
+    background-repeat: no-repeat;
+}
+
 .marked
 {
     border: 2px solid #ececec;
@@ -122,8 +131,8 @@ body
     border: ridge 1px #c28359;
     width:100%;
     padding: 5px;
-    min-height:40px;
-    font-size:10pt;
+    min-height:3em;
+    font-size:1.2em;
 }
 
 .actionbutton:active
@@ -136,10 +145,9 @@ body
 #info_board
 {
     font-family:sans-serif;
-    font-size: 10pt;
     color: #c28359;
     text-align:center;
-    padding:10px;
+    padding:1em;
 }
 
 /* Indicators*/
@@ -190,6 +198,11 @@ body
     background-color: #c28359;
 }
 
+.beige
+{
+    background-color: #a66954;
+}
+
 .square
 {
     position:absolute;
@@ -209,67 +222,99 @@ body
 
 
 
-.rabbit_w
+.R
 {
     background-position:0% 100%
 }
 
-.rabbit_b
+.r_
 {
+    background-position:0% 0%
 }
 
-.cat_w
+.C
 {
-    background-position:20% 100%;
+    background-position:20% 100%
 }
 
-.cat_b
+.c_
 {
-    background-position:20% 0%;
+    background-position:20% 0%
 }
 
-.dog_w
+.D
 {
-    background-position:40% 100%;
+    background-position:40% 100%
 }
 
-.dog_b
+.d_
 {
-    background-position:40% 0%;
+    background-position:40% 0%
 }
 
-.horse_w
+.H
 {
-    background-position:60% 100%;
+    background-position:60% 100%
 }
 
-.horse_b
+.h_
 {
-    background-position:60% 0%;
+    background-position:60% 0%
 }
 
-.camel_w
+.M
 {
-    background-position:80% 100%;
+    background-position:80% 100%
 }
 
-.camel_b
+.m_
 {
-    background-position:80% 0%;
+    background-position:80% 0%
 }
 
-.elephant_w
+.E
 {
-    background-position:100% 100%;
+    background-position:100% 100%
 }
 
-.elephant_b
+.e_
 {
-    background-position:100% 0%;
+    background-position:100% 0%
 }
 
-#side_choice
+#side_pick
 {
+    display:flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+    flex-flow:row nowrap;
+}
+
+.side_choice
+{
+    width:30%;
+    margin:0px;
+    display:inline-block;
+    border: 0px solid white;
+    border-radius: 10% 10%;
+}
+
+.chosen
+{
+    border-width: 5px;
+    width:calc(30% - 10px);
+}
+
+.side_choice::before
+{
+    content: "";
+    display: block;
+    padding-top:100%;
+}
+
+.padder
+{
+    padding-top:100%;
 }
 
 .selection_box

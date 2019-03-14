@@ -4,58 +4,71 @@
     <head>
         <title>Arimaa</title>
         <link rel=stylesheet type="text/css" href="style.css" />
-	<script src="src/arimaa.js"></script>
-	<script src="src/arimaa_gui.js"></script>
-	<script src="vue@2.4.2.js"></script>
-	<script type="text/javascript">
-	  
-	  
-	  let initiate_game = function(){
-	    vm = new Vue(obfun(new Board()));
-	  }
-	</script>
-    </head>
-    <body onload="setup()">
-      <div id="main" @click="deactivate">
-	<div id="info_board">{{status_msg}} <template v-if="your_turn"> ~ Moves made: {{moves_made}}</template></div>
-	<div class="board">
-	  <div style="position:relative;" class="innerboard">
-	    <!--Board numbering/lettering-->
-	    <template v-for="i in 16" >
-	      <div class="marking lettering" :style="letter_pos(i > 8, (i-1)%8)" ><span>{{board_letter((i-1)%8)}}<span></div>
-	    </template>
-	    <template v-for="i in 16">
-	      <div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
-	    </template>
-	    <!--Pieces - playing-->
-	    <template v-for="i in board.pieces()">
-	      <div v-if="vis_piece(i[1])" class="square piece_a"
-		   :class="[piece_c(i[1]), i[0].equals(active) || i[0].equals(pusher) ? 'marked' : '']"
-		   :style="pos(i[0].x, i[0].y)"
-		   @click.stop="orig_click(i[0])">
-	      </div>
-	    </template>
-	    <template v-for="m in markers_alt">
-	      <div class="square" :class="dest_class(m)" :style="pos(m[0].x, m[0].y)" @click.stop="dest_click(m)"></div>
-	    </template>
-	  </div>
-	</div>
-
-	<button v-if="status == 1" class="actionbutton" @click="confirm_placement()">Confirm placement</button>
-	<button v-if="moves_made > 0" class="actionbutton" @click="ts.undo()">Undo</button>
-	<button v-if="moves_made > 0" class="actionbutton" @click="ts.reset_turn()">Reset turn</button>
-	<template v-if="valid_turn">
-	  <br />
-	  <br />
-	  <button class="actionbutton" style="height:80px" @click="end_turn">End turn</button>
-	</template>
-	<div style="text-align:center; font-family:monospace; font-size:12pt; font-weight: bold; display:flex; flex-direction:column-reverse;">
-	  <div v-for="h, i in history" style="padding:10px;" :class="[i%2 == 0 ? 'white_history' : 'black_history']">
-	    <div v-for="m in h">
-	      {{m.toString()}}
-	      </div>
-	  </div>
-	</div>
-      </div>
-    </body>
+				<script src="vue@2.6.8.js"></script>
+				<!-- <script src="vue.min.js"></script> -->
+				<script src="src/arimaa_alt.js"></script>
+				<script src="src/arimaa_alt_gui.js"></script>
+				<script type="text/javascript">
+					let setup = function () {
+						c = new Client()
+						c.connect()
+					}
+				</script>
+		</head>
+		<body onload="setup()">
+			<div id="main" @click="function(){}">
+				<div id="info_board">{{status}} <template v-if="your_turn"> ~ Moves made: {{moves_made}}</template></div>
+				<!-- Side picking utility -->
+				<template v-if="side_pick">
+				<div id="side_pick">
+					<a href="#" class="side_choice piece_a E black" :class="{chosen : side_choice == 0}" @click="side_choice = 0"></a>
+					<a href="#" class="side_choice ambiv beige" :class="{chosen : side_choice == 2}" @click="side_choice = 2"></a>
+					<a href="#" class="side_choice piece_a e_ white" :class="{chosen : side_choice == 1}" @click="side_choice = 1"></a>
+				</div>
+				<br/>
+				<button style="height:2cm;" v-if="side_choice != -1" class="actionbutton" @click="confirm_choice">Confirm choice</button>
+				</template>
+				<!-- Board and related stuff -->
+				<div class="board" v-if="show_board">
+					<div style="position:relative;" class="innerboard">
+						<!--Board numbering/lettering-->
+						<template v-for="i in 16">
+							<div class="marking lettering" :style="letter_pos(i > 8, (i-1)%8)"><span>{{board_letter((i-1)%8)}}<span></div>
+						</template>
+						<template v-for="i in 16">
+							<div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
+						</template>
+						<!--Pieces - playing-->
+						<template v-for="bp in pieces">
+							<div
+								class="square piece_a"
+								:class="[bp.piece.class()]"
+								:style="pos(bp.pos)"
+								@click.stop="gen_log(bp)">
+							</div>
+						</template>
+						<!-- <template v-for="m in markers_alt">
+							<div class="square" :class="dest_class(m)" :style="pos(m[0].x, m[0].y)" @click.stop="dest_click(m)"></div>
+						</template> -->
+					</div>
+				</div>
+				<button class="actionbutton" v-if="piece_setup && !sent_setup" @click="send_setup">Confirm piece setup</button>
+				<!-- <button v-if="status == 1" class="actionbutton" @click="confirm_placement()">Confirm placement</button>
+				<button v-if="moves_made > 0" class="actionbutton" @click="ts.undo()">Undo</button>
+				<button v-if="moves_made > 0" class="actionbutton" @click="ts.reset_turn()">Reset turn</button>
+				<template v-if="valid_turn">
+					<br />
+					<br />
+					<button class="actionbutton" style="height:80px" @click="end_turn">End turn</button>
+				</template>
+				<div
+					style="text-align:center; font-family:monospace; font-size:12pt; font-weight: bold; display:flex; flex-direction:column-reverse;">
+					<div v-for="h, i in history" style="padding:10px;" :class="[i%2 == 0 ? 'white_history' : 'black_history']">
+						<div v-for="m in h">
+							{{m.toString()}}
+						</div>
+					</div>
+				</div> -->
+			</div>
+		</body>
 </html>
