@@ -1,41 +1,57 @@
 var WebSocketServer = require('websocket').server;
 var http = require('http');
 
-var server = http.createServer(function(request, response) {
-    // process HTTP request. Since we're writing just WebSockets
-    // server we don't have to implement anything.
-});
-
-server.listen(3000, function() { });
+var server = http.createServer();
+server.listen(3000);
 
 // create the server
 var wsServer = new WebSocketServer({
     httpServer: server
 });
 
-wsServer.on('open', function(questionmark) { console.log("connection opened perhaps") })
-
 var clients = []
 
-
 var turn = 0;
-var board = new Board();
+var board = new Board()
 var status = 0
 var confirmed = 0
 
+var cache = []
+function render(key, value) {
+    if (typeof value === 'object' && value !== null) {
+        if (cache.indexOf(value) !== -1) {
+            // Duplicate reference found
+            try {
+                // If this value does not reference a parent it can be deduped
+                return JSON.parse(JSON.stringify(value));
+            } catch (error) {
+                // discard key if value cannot be deduped
+                return;
+            }
+        }
+        // Store value in our collection
+        cache.push(value);
+    }
+    return value;
+}
 
 // WebSocket server
 wsServer.on('request', function(request) {
 
-    var connection = request.accept(null, request.origin);
-    console.log("connection opened")
-    var index = clients.push(connection) - 1
-    console.log("connections: " + String(clients.length))
+	// console.log(JSON.stringify(request, render, 2))
 
-    // This is the most important callback for us, we'll handle
-    // all messages from users here.
+	var connection = request.accept(null, request.origin)
 
-    connection.on('message', function(message) {
+	// console.log("connection opened")
+
+	var index = clients.push(connection) - 1
+
+	// console.log("connections: " + String(clients.length))
+
+	// This is the most important callback for us,
+	// we'll handle all messages from users here.
+
+	connection.on('message', function(message) {
 
 	if (message.type === 'utf8') {
 
@@ -44,7 +60,7 @@ wsServer.on('request', function(request) {
 	    if(ob.type == "setup")
 	    {
 		var response = {type : "setup", board : 0, turn : turn}
-		
+
 		connection.sendUTF(JSON.stringify(response))
 	    }
 	    else

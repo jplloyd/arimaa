@@ -42,33 +42,34 @@
 						<template v-for="bp in pieces">
 							<div
 								class="square piece_a"
-								:class="[bp.piece.class()]"
-								:style="pos(bp.pos)"
-								@click.stop="gen_log(bp)">
+								:class="[bp.piece.class(), {marked : bp == marked}]"
+								:style="[pos(bp.pos), {opacity: bp.alive ? 1 : 0, zIndex: bp.alive ? 2 : 1}]"
+								v-on="piece_blah(bp)">
 							</div>
 						</template>
-						<!-- <template v-for="m in markers_alt">
-							<div class="square" :class="dest_class(m)" :style="pos(m[0].x, m[0].y)" @click.stop="dest_click(m)"></div>
-						</template> -->
+						<!-- Markers -->
+						<template v-if="markers != undefined" v-for="m in markers">
+							<template v-if="m.trapped.occupied">
+								<div :style="pos(m.trapped.pos)" class="square skull"></div>
+							</template>
+							<div class="square" :class="m.class" :style="pos(m.to)" @click.stop="m.cb"></div>
+						</template>
 					</div>
 				</div>
 				<button class="actionbutton" v-if="piece_setup && !sent_setup" @click="send_setup">Confirm piece setup</button>
-				<!-- <button v-if="status == 1" class="actionbutton" @click="confirm_placement()">Confirm placement</button>
 				<button v-if="moves_made > 0" class="actionbutton" @click="ts.undo()">Undo</button>
-				<button v-if="moves_made > 0" class="actionbutton" @click="ts.reset_turn()">Reset turn</button>
+				<button v-if="moves_made > 0" class="actionbutton" @click="ts.reset()">Reset turn</button>
 				<template v-if="valid_turn">
 					<br />
 					<br />
-					<button class="actionbutton" style="height:80px" @click="end_turn">End turn</button>
+					<button class="actionbutton" style="height:4em" @click="end_turn">End turn</button>
 				</template>
 				<div
-					style="text-align:center; font-family:monospace; font-size:12pt; font-weight: bold; display:flex; flex-direction:column-reverse;">
-					<div v-for="h, i in history" style="padding:10px;" :class="[i%2 == 0 ? 'white_history' : 'black_history']">
-						<div v-for="m in h">
-							{{m.toString()}}
-						</div>
+					style="text-align:center; font-family:monospace; font-size:1em; font-weight: bold; display:flex; flex-direction:column-reverse;">
+					<div v-for="h, i in gs.move_history" style="padding:10px;" :class="[i%2 == 0 ? 'white_history' : 'black_history']">
+						<div v-for="m in h"> {{m.toString()}} </div>
 					</div>
-				</div> -->
+				</div>
 			</div>
 		</body>
 </html>

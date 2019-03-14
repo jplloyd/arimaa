@@ -1,5 +1,6 @@
 // Basic consistency tests, unit tests, integration tests, written plain
-module Tests {
+// import {Msg, Maybe, GameState, Board, BoardSetup, State, Player, Move, Trapped} from "./arimaa_alt"
+namespace Tests {
 
     let tests_passed = 0
     let tests_failed = 0

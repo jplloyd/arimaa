@@ -1,32 +1,32 @@
 <meta http-equiv="content-type" content="text/html" charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <html>
-    <head>
-        <title>Arimaa testing ground</title>
-        <link rel=stylesheet type="text/css" href="style_testing.css" />
-	<script src="src/arimaa_alt.js"></script>
-	<script src="src/arimaa_tests.js"></script>
-	<script src="src/test.js"></script>
-	<script src="vue@2.4.2.js"></script>
-	<script type="text/javascript">
-	  function setup(){
-	  vm = new Vue(ob)
-	  }
-
-		window.conns = []
-
-		var win = window
-		win.WebSocket = win.WebSocket || win.MozWebSocket
-		let server_ip=window.location.hostname
-		var conn = new WebSocket('ws://'+server_ip+':3000')
-		window.conns.push(conn)
-		conn.onopen=function(){console.log("Connection hath been opened");
-			conn.send(JSON.stringify({just: "Some data", and : "some other data"}))
-		}
-		conn.onmessage = function(msg){console.log("Message hath been received")}
-		conn.onclose = function (msg){console.log("Connection hath been closed")}
-
-
+ 	<head>
+  	<title>Arimaa testing ground</title>
+		<link rel=stylesheet type="text/css" href="style_testing.css" />
+		<script src="vue@2.4.2.js"></script>
+		<!-- <script src="vue.min.js"></script> -->
+		<script src="src/arimaa_alt.js"></script>
+		<script src="src/arimaa_tests.js"></script>
+		<script src="src/arimaa_alt_gui.js"></script>
+		<script src="src/test.js"></script>
+		<script type="text/javascript">
+			var server = undefined
+			function _setup(){
+				var c = new Client()
+				c.connect()
+				window.client = c
+			}
+			function setup()
+			{
+				list = [1, 2, 3, 4]
+				vm = new Vue({
+					el: "#main",
+					data:{
+						thelist : list
+					},
+				})
+			}
 	</script>
 	<style type="text/css">
 	  .con
@@ -46,13 +46,19 @@
 	  }
 	</style>
     </head>
-    <body onload="setup()">
-      <div id="main">
-	<h1 class="c a" >{{greeting}}</h1>
+  <body style="display:block" onload="(() => { console.log(this); setup()})()">
+	<div id="main">
+	<h1 class="c a" >{{thelist.length}}</h1>
 	<div class="con">
-	  <template v-for="t in test_obs">
+		<template v-for="i in thelist">
+			<div style="margin:auto">{{i}}</div>
+		</template>
+
+	<!--
+		<template v-for="t in test_obs">
 	    <div class="s" :style="pos(t.pos.x, t.pos.y)"></div>
-	  </template>
+		</template>
+	-->
 	</div>
       </div> <!-- end of main -->
     </body>

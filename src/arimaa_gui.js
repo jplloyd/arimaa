@@ -14,7 +14,7 @@ let _setup = function()
 
 let setup = function()
 {
-    window.WebSocket = window.WebSocket || window.MozWebSocket
+	window.WebSocket = window.WebSocket || window.MozWebSocket
     let server_ip=window.location.hostname
     let conn = new WebSocket('ws://'+server_ip+':3000')
 

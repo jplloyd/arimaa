@@ -156,6 +156,9 @@ class Client
                 this.vm.player = data.side
                 break;
             case State.WhitesTurn:
+            case State.BlacksTurn:
+            case State.WhiteWins:
+            case State.BlackWins:
                 if(data.black_setup)
                 {
                     let black_setup = BoardSetup.from_json(data.black_setup)
@@ -167,6 +170,9 @@ class Client
                     let ms_js : number[] = data.move_set
                     let ms : Move[] = ms_js.map(i => Move.from_json(i))
                     this.gs.apply(ms)
+                    this.ts.reset()
+                    console.log("Definitely setting the client state here")
+                    this.gs.state = data.state
                 }
                 break;
             default:
@@ -200,6 +206,8 @@ class Client
                 let new_gs = GameState.from_json(data.gamestate)
                 this.vm.player = data.side
                 this.gs.clone(new_gs)
+                this.ts.base_board = this.gs.board
+                this.ts.reset()
                 break;
             default:
                 break;
@@ -227,10 +235,10 @@ class Client
                 let bs : BoardSetup = BoardSetup.from_json(msg.data.setup)
                 this.ts.current_board.setup(bs)
                 this.gs.board.setup(bs)
-                break;
+                break
             default:
                 console.warn(`Unhandled message: ${msg}`)
-                break;
+                break
         }
     }
 
@@ -265,6 +273,8 @@ let gui_ob =
         ts : undefined,
         side_choice: -1,
         sent_setup: false,
+        marked: undefined,
+        markers: undefined
     },
     // Computed methods
     computed : {
@@ -285,7 +295,9 @@ let gui_ob =
         //@ts-ignore
         piece_setup: function(){return this.gs.state == State.PieceSetup},
         //@ts-ignore
-        moves_made: function(){return this.ts.moves_made()}
+        moves_made: function(){return this.ts.moves_made()},
+        //@ts-ignore
+        valid_turn: function(){return this.moves_made > 0 && this.moves_made < 5}
     },
     methods : {
         //Server related methods
@@ -309,7 +321,171 @@ let gui_ob =
             //@ts-ignore
             this.sent_setup = true; this.ts.apply()
             //@ts-ignore
-            this.gs.state = State.Waiting
+            this.gs.state = State.Waiting; this.marked = undefined
+        },
+        end_turn : function()
+        {
+            //@ts-ignore
+            let c : Client = window.c
+            //@ts-ignore
+            let ts : TurnState = this.ts
+            c.gs.apply(ts.move_buffer)
+            c.send({type: Msg.MoveSet, data: ts.move_buffer.map(m => m.to_json())})
+            ts.reset()
+
+        },
+        // Piece setup and playing methods
+        piece_blah: function(bp : BoardPiece)
+        {
+            let vm = this
+            return bp.alive ? {click: () =>  vm.piece_click(bp)} : {}
+        },
+        piece_click: function(bp : BoardPiece){
+            //@ts-ignore
+            if(this.state == State.PieceSetup)
+            {
+                this.setup_piece(bp)
+            }
+            //@ts-ignore
+            else if(this.your_turn)
+            {
+                console.log("Clicking on a piece")
+                //@ts-ignore
+                if(bp == this.marked)
+                {
+                    //@ts-ignore
+                    this.marked = undefined; this.markers = undefined
+                    return;
+                }
+
+                //@ts-ignore
+                let ts : TurnState = this.ts; let player : Player = this.player
+                let mi : MoveInfo[] = ts.current_board.moves(bp, player)
+
+                if(mi.length != 0)
+                {
+                    //@ts-ignore
+                    this.marked = bp
+                    // What do we need from the markers - their position and a callback function
+                    let markers = []
+                    for(let minf of mi)
+                    {
+                        if(minf.type == "step")
+                        {
+                            let traps = minf.trapped != nothing_trapped
+                            markers.push({
+                                to: minf.to,
+                                class: traps ? "death" : "clear",
+                                trapped: minf.trapped,
+                                cb: this.step(minf.trapped, minf.to)})
+                        }
+                        else
+                        {
+                            markers.push({
+                                to: minf.to,
+                                class: "pusher",
+                                trapped: minf.trapped,
+                                cb: this.pushpull_start(bp.pos.copy(), minf.to, minf.trapped, minf.dest)
+                            })
+                        }
+                    }
+                    //@ts-ignore
+                    this.markers = markers
+                }
+                else
+                {
+                    //@ts-ignore
+                    this.marked = undefined
+                }
+            }
+        },
+        pushpull_start: function(from : Pos, to : Pos, t : Trapped, dests : [Pos, Trapped][])
+        {
+            // When we click on one of these, we redefine the markers and create 
+            // new callbacks to complete the pushpull move
+            let vm = this
+            //@ts-ignore
+            let cb : Board = vm.ts.current_board
+            let fromp : Piece = cb.get_bp(from)!.piece
+            let to_p : Piece = cb.get_bp(to)!.piece
+            let to_d : Dir = to_dir(from, to)
+            return function(p : Pos)
+            {
+                console.log("Part one of the push/pull saga")
+                let secondary_markers = []
+                for(let [dest_p, tt] of dests)
+                {
+                    let dest_d : Dir = to_dir(to, dest_p)
+                    secondary_markers.push({
+                        to: dest_p,
+                        class: "pusher",
+                        trapped: tt,
+                        cb: vm.pushpull_complete(fromp, to_p, from,to_d, dest_d, t, tt)
+                    })
+                }
+                //@ts-ignore
+                vm.markers = secondary_markers
+            }
+        },
+        pushpull_complete: function(fromp : Piece, top : Piece, from : Pos, to : Dir, dest : Dir, t1 : Trapped, t2 : Trapped)
+        {
+            let vm = this
+            return function(){
+                let pp = new PushPull(fromp, top, from, to, dest, [t2, t1])
+                let m = new Move(pp)
+                //@ts-ignore
+                let ts : TurnState = vm.ts
+                ts.move_buffer.push(m)
+                ts.current_board.apply_move(m)
+                //@ts-ignore
+                vm.markers = undefined; vm.marked = undefined
+            }
+        },
+        step: function(t : Trapped, to : Pos)
+        {
+            let vm = this
+            return function()
+            {
+                console.log("Stepping away!")
+                //@ts-ignore
+                let bp = vm.marked
+                //@ts-ignore
+                vm.marked = undefined
+                //@ts-ignore
+                let ts: TurnState = vm.ts
+                let cb: Board = ts.current_board
+                let dir = to_dir(bp.pos, to)
+                let s = new Step(bp.piece, bp.pos, dir, t)
+                let m = new Move(s)
+                ts.move_buffer.push(m)
+                cb.apply_move(m)
+                //@ts-ignore
+                vm.markers = undefined
+            }
+        },
+        setup_piece: function(bp : BoardPiece)
+        {
+            //@ts-ignore
+            if (bp == this.marked || bp.piece.player != this.player) {
+                //@ts-ignore
+                this.marked = undefined
+            }
+            //@ts-ignore
+            else if (this.marked != undefined) // Shuffle time
+            {
+                let pos = bp.pos.copy()
+                //@ts-ignore
+                let m: BoardPiece = this.marked
+                bp.pos.clone(m.pos)
+                m.pos.clone(pos)
+                //@ts-ignore
+                this.marked = undefined
+            }
+            else // Marking time
+            {
+                //@ts-ignore
+                this.marked = bp
+            }
         },
         // Utility methods
         gen_log: function(data : any){

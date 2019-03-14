@@ -559,8 +559,8 @@ class Move
         return this.move.toString()
     }
 }
-type StepInfo = {type : 'step', to : Pos}
-type PPInfo = {type : 'pushpull', to : Pos, dest : Pos[]}
+type StepInfo = {type : 'step', to : Pos, trapped : Trapped}
+type PPInfo = {type : 'pushpull', to : Pos, trapped : Trapped, dest : [Pos,Trapped][]}
 type MoveInfo = StepInfo | PPInfo
 
 class BoardSetup
@@ -795,7 +795,12 @@ class Board
                 {
                     // Rabbits cannot step backwards
                     if(bp.piece.rank != Rank.Rabbit || to_dir(bp.pos, p) != 2 - turn*2)
-                        res.push({type: 'step', to : p})
+                    {
+                        let trapped = this.deadly_trap(p, turn)
+                        if(trapped == nothing_trapped)
+                            trapped = this.sole_guardian(bp.pos)
+                        res.push({type: 'step', to : p, trapped: trapped})
+                    }
                 }
             }
             else if(np.piece.player == bp.piece.player)
@@ -806,7 +811,21 @@ class Board
             {
                 let empties : Pos[] = this.free_squares(p)
                 if(empties.length > 0)
-                    res.push({type: 'pushpull', to: p, dest : empties})
+                {
+                    let opp = opponent(turn)
+                    let trapped = this.deadly_trap(p, own_piece ? turn : opp)
+                    if(trapped == nothing_trapped)
+                        trapped = this.sole_guardian(bp.pos)
+                    let dest_traps : [Pos, Trapped][] = []
+                    for(let dest_pos of empties)
+                    {
+                        let trapped = this.deadly_trap(dest_pos, own_piece ? opp : turn)
+                        if (trapped == nothing_trapped)
+                            trapped = this.sole_guardian(p)
+                        dest_traps.push([dest_pos, trapped])
+                    }
+                    res.push({type: 'pushpull', to: p, trapped: trapped, dest : dest_traps})
+                }
             }
         }
         return res
