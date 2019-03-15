@@ -9,7 +9,7 @@ namespace Tests {
     function json_string_test(a: any) {
         let j1 = a.to_json()
         let a2 = a.__proto__.constructor.from_json(j1)
-        if (JSON.stringify(j1) == JSON.stringify(a2.to_json()))
+        if (JSON.stringify(j1) == JSON.stringify(a2.to_json()) && a.toString() == a2.toString())
         {
             tests_passed++
             return true
@@ -61,11 +61,15 @@ namespace Tests {
     var st4 = new Step(p0, new Pos(2, 2), Dir.West, nothing_trapped)
     var st5 = new Step(p3, new Pos(6, 5), Dir.West, new Trapped(new Pos(5, 5), p4))
 
+    var nn : [Trapped, Trapped] = [nothing_trapped, nothing_trapped]
+
     var pp1 = new PushPull(p1, p2, new Pos(4, 5), Dir.North, Dir.South, [t1, nothing_trapped])
     var pp2 = new PushPull(p3, p1, new Pos(2, 5), Dir.West, Dir.West, [nothing_trapped, t2])
     var pp3 = new PushPull(p3, p1, new Pos(6, 5), Dir.West, Dir.West, [new Trapped(new Pos(2, 2), p2), nothing_trapped])
     var pp4 = new PushPull(p3, p1, new Pos(6, 5), Dir.West, Dir.West, [nothing_trapped, new Trapped(new Pos(2, 5), p3)])
     var pp5 = new PushPull(p3, p1, new Pos(6, 5), Dir.West, Dir.West, [new Trapped(new Pos(5, 2), p1), new Trapped(new Pos(2, 5), p3)])
+    export var pp6 = new PushPull(p5, p4, new Pos(4, 6), Dir.South, Dir.South, nn)
+
 
     var m1 = new Move(st1)
     var m2 = new Move(pp3)
@@ -77,15 +81,15 @@ namespace Tests {
     var wh = new Piece(Player.White, Rank.Horse)
     var wc = new Piece(Player.White, Rank.Cat)
 
-    let basic_structures =
+    let basics =
         [
             wh,
             p0, p1, p2, p3, p4,
             bp0, bp1, bp2, bp3, bp4,
             t1, t2, t3,
             st0, st1, st2, st3, st4, st5,
-            pp1, pp2, pp3, pp4, pp5,
-            m1, m2,
+            pp1, pp2, pp3, pp4, pp5, pp6,
+            m1, new Move(pp6), m2,
             db, gs
         ]
 
@@ -353,7 +357,7 @@ namespace Tests {
         tests_passed = tests_failed = 0
 
         // Basic conversion tests - converting back and forth should yield identical objects
-        for (let i of basic_structures.map(json_string_test)) {
+        for (let i of basics.map(json_string_test)) {
             if(i != true)
                 console.error(i);
         }

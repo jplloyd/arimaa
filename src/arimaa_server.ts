@@ -124,6 +124,7 @@ class GameSession
             if(cost + m.move.cost > 4 || !tmp_board.valid_move(m, turn))
                 return false
             tmp_board.apply_move(m)
+            cost += m.move.cost
         }
         return !tmp_board.equals(this.gs.board) && !this.state_reoccurence(tmp_board, turn)
     }
@@ -339,6 +340,7 @@ class GameSession
         }
         else
         {
+            warning("Received an invalid move set!")
             this.send(conn, Msg.Error, {message : "Invalid move set"})
         }
     }

@@ -351,7 +351,9 @@ class Step
     {
         // Special movement rules for rabbits (unless pulled/pushed)
         if(!moved && this.piece.rank == Rank.Rabbit && this.to == 2 - turn * 2)
+        {
             return false
+        }
 
         let to_p = this.from.step(this.to)
         let pred = (
@@ -395,7 +397,7 @@ class Step
 
     toString() : string
     {
-        let str = `${this.piece}${this.from}${dirs[this.to]}${this.trapped}`
+        let str = `${this.piece}${this.from}${dirs[this.to]} ${this.trapped}`
         return str
     }
 
@@ -456,8 +458,15 @@ class PushPull
         let fp = this.from_piece
         let tp = this.to_piece
 
+        function err(msg : string)
+        {
+            console.log(`Pushpull validation error: ${msg}`)
+        }
+
+
         if(fp.player == tp.player || fp.rank == tp.rank)
         {
+            err("Trying to pull a piece on same side, or of equal rank")
             return false
         }
 
@@ -465,10 +474,15 @@ class PushPull
 
         if(stronger.player != turn)
         {
+            err("The stronger piece does not belong to the side whose turn it is")
             return false
         }
         let st1 = this.step1.valid(board, tp.player, stronger == fp)
+        if(!st1)
+            err("Error when validating step 1")
         let st2 = this.step2.valid(this.step1.apply(board.copy()), fp.player, stronger == tp)
+        if(!st2)
+            err("Error when validating step 2")
         return st1 && st2
     }
 
@@ -537,21 +551,21 @@ class Move
         this.move = move
     }
 
-    to_json() : number
+    to_json() : [number, number]
     {
         let s = this.move.to_json()
         if(this.move instanceof Step)
-            return s << 1 | 1
+            return [0, s]
         else
-            return s << 1
+            return [1, s]
     }
 
-    static from_json(n : number) : Move
+    static from_json([id, n] : [number, number]) : Move
     {
-        if(n & 1)
-            return new Move(Step.from_json(n >> 1))
+        if(id == 0)
+            return new Move(Step.from_json(n))
         else
-            return new Move(PushPull.from_json(n >> 1))
+            return new Move(PushPull.from_json(n))
     }
 
     toString() : string
@@ -1117,7 +1131,7 @@ class GameState
             this.board.apply_move(m)
         }
         let w = this.board.winner()
-        if(w != false)
+        if(w !== false)
         {
             this.state = w[0] == Player.White ? State.WhiteWins : State.BlackWins
             this.winner = w[0]

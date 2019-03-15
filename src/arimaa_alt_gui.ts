@@ -167,7 +167,7 @@ class Client
                 }
                 if(data.move_set)
                 {
-                    let ms_js : number[] = data.move_set
+                    let ms_js : [number, number][] = data.move_set
                     let ms : Move[] = ms_js.map(i => Move.from_json(i))
                     this.gs.apply(ms)
                     this.ts.reset()
@@ -319,7 +319,7 @@ let gui_ob =
             //@ts-ignore
             c.send({type: Msg.PieceSetup, data: BoardSetup.from_board(this.player, b).to_json()})
             //@ts-ignore
-            this.sent_setup = true; this.ts.apply()
+            this.sent_setup = true; this.ts.apply(); this.ts.reset()
             //@ts-ignore
             this.gs.state = State.Waiting; this.marked = undefined
         },
@@ -332,7 +332,6 @@ let gui_ob =
             c.gs.apply(ts.move_buffer)
             c.send({type: Msg.MoveSet, data: ts.move_buffer.map(m => m.to_json())})
             ts.reset()
-
         },
         // Piece setup and playing methods
         piece_blah: function(bp : BoardPiece)
