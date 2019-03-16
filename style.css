@@ -189,16 +189,21 @@ body
 
 /* Squares */
 
-.white_history
+.w_hist
 {
     background-color: #8a5050;
     color:#efefef;
 }
 
-.black_history
+.b_hist
 {
     background-color: #c28359;
     color:101010;
+}
+
+.entry
+{
+    padding:0.5em;
 }
 
 .black
@@ -216,7 +221,7 @@ body
     background-color: #a66954;
 }
 
-.square
+.square_button
 {
     position:absolute;
     width:12.5%;

@@ -87,6 +87,7 @@ class Client
         this.handle = this.handle.bind(this)
         this.open = this.open.bind(this)
         this.close = this.close.bind(this)
+        this.handle_move_set = this.handle_move_set.bind(this)
     }
 
     /**
@@ -114,7 +115,7 @@ class Client
 
     open(ev : Event)
     {
-        console.log("Connection opened, requesting state update")
+        //console.log("Connection opened, requesting state update")
         this.vm.connected = true
         this.request_state()
     }
@@ -131,12 +132,12 @@ class Client
 
     error(ev : Event) : void
     {
-        console.log("An error handled in the client")
+        //console.log("An error handled in the client")
     }
 
     close(ev : Event) : void
     {
-        console.log("Connection is closing - better tell the user")
+        //console.log("Connection is closing - better tell the user")
         this.vm.connected = false
         this.gs.state = State.Unknown
     }
@@ -169,21 +170,43 @@ class Client
                 {
                     let ms_js : [number, number][] = data.move_set
                     let ms : Move[] = ms_js.map(i => Move.from_json(i))
-                    this.gs.apply(ms)
-                    this.ts.reset()
-                    console.log("Definitely setting the client state here")
+                    this.gs.apply(ms.slice())
+                    this.handle_move_set(ms)
+                    //this.ts.reset()
+                    ////console.log("Definitely setting the client state here")
                     this.gs.state = data.state
                 }
                 break;
             default:
-                console.warn(`Unhandled update message for state: ${State[data.state]}!`)
+                //console.warn(`Unhandled update message for state: ${State[data.state]}!`)
                 break;
+        }
+    }
+
+    handle_move_set(ms: Move[]) : void
+    {
+        if(!this.vm.moving)
+            this.vm.moving = true
+
+        if(ms.length == 0)
+        {
+            ////console.log("No more moves")
+            this.ts.reset()
+            this.vm.moving = false
+        }
+        else
+        {
+            ////console.log("Moving")
+            let c : Client = this
+            let m = ms.shift()
+            this.ts.current_board.apply_move(m!)
+            window.setTimeout(function(){c.handle_move_set(ms)}, 600)
         }
     }
 
     init(data : any) : void // Handling State.SendState
     {
-        console.log("Initiating state")
+        //console.log("Initiating state")
         switch(data.state)
         {
             case State.PieceSetup:
@@ -191,13 +214,13 @@ class Client
                 if(data.setup)
                 {
                     // Set up the white pieces
-                    console.log("Setting up white's pieces")
-                    let setup : BoardSetup = BoardSetup.from_json(data.setup)
-                    this.ts.current_board.setup(setup)
-                    this.ts.base_board.setup(setup)
-                    this.gs.white_setup = setup
+                    //console.log("Setting up white's pieces (init)")
+                    let ws : BoardSetup = BoardSetup.from_json(data.setup)
+                    this.vm.gs.white_setup = ws
+                    this.ts.current_board.setup(ws)
+                    this.ts.base_board.setup(ws)
                 }
-                break;
+                break
             case State.WhitesTurn:
             case State.BlacksTurn:
             case State.WhiteWins:
@@ -218,7 +241,7 @@ class Client
 
     msg_switch(msg : Message)
     {
-        console.log("Handling message")
+        ////console.log("Handling message")
         switch(msg.type) // For now, we trust the server completely
         {
             case Msg.StateSend:
@@ -228,23 +251,24 @@ class Client
                 this.update(msg.data)
                 break;
             case Msg.SideChoice:
-                console.log(`We should play as ${Player[msg.data]}`)
+                //console.log(`We should play as ${Player[msg.data]}`)
                 break
             case Msg.PieceSetup:
-                console.log(`Setting up white's pieces`)
+                //console.log(`Setting up white's pieces (update)`)
                 let bs : BoardSetup = BoardSetup.from_json(msg.data.setup)
+                this.gs.white_setup = bs
                 this.ts.current_board.setup(bs)
                 this.gs.board.setup(bs)
                 break
             default:
-                console.warn(`Unhandled message: ${msg}`)
+                //console.warn(`Unhandled message: ${msg}`)
                 break
         }
     }
 
     handle(ev: any) : void
     {
-        console.log(`Receiving message: ${ev.data}`)
+        //console.log(`Receiving message: ${ev.data}`)
         try {
         let data = JSON.parse(ev.data)
         if(!("type" in data))
@@ -253,8 +277,7 @@ class Client
             this.msg_switch(data)
         } catch(error)
         {
-            console.error(`Error when handling message: ${error}
-            Message: ${ev.data}`)
+            //console.error(`Error when handling message: ${error} Message: ${ev.data}`)
         }
     }
 }
@@ -274,7 +297,8 @@ let gui_ob =
         side_choice: -1,
         sent_setup: false,
         marked: undefined,
-        markers: undefined
+        markers: undefined,
+        moving: false //Moves of the opponent are playing - prevent clicks
     },
     // Computed methods
     computed : {
@@ -285,7 +309,7 @@ let gui_ob =
         //@ts-ignore
         state : function() {return this.gs.state},
         //@ts-ignore
-        your_turn: function() {return this.turn == this.player},
+        your_turn: function() {return this.turn == this.player && !moving},
         //@ts-ignore
         state: function() {return this.gs.state},
         //@ts-ignore
@@ -297,7 +321,17 @@ let gui_ob =
         //@ts-ignore
         moves_made: function(){return this.ts.moves_made()},
         //@ts-ignore
-        valid_turn: function(){return this.moves_made > 0 && this.moves_made < 5}
+        valid_turn: function(){return this.moves_made > 0 && this.moves_made < 5},
+        _history: function()
+        {
+            //@ts-ignore
+            let bs : any[][] = this.gs.black_setup != false ? [[this.gs.black_setup]] : []
+            //@ts-ignore
+            let ws : any[][] = this.gs.white_setup != false ? [[this.gs.white_setup]] : []
+            //@ts-ignore
+            let ms : any[][] = this.gs.move_history
+            return ws.concat(bs).concat(ms)
+        }
     },
     methods : {
         //Server related methods
@@ -317,11 +351,19 @@ let gui_ob =
             //@ts-ignore
             let b = this.ts.current_board
             //@ts-ignore
-            c.send({type: Msg.PieceSetup, data: BoardSetup.from_board(this.player, b).to_json()})
+            let gs : GameState = this.gs; let p : Player = this.player
+            //@ts-ignore
+            let setup = BoardSetup.from_board(this.player, b)
+            c.send({type: Msg.PieceSetup, data: setup.to_json()})
             //@ts-ignore
             this.sent_setup = true; this.ts.apply(); this.ts.reset()
+            if(p == Player.White)
+                gs.white_setup = setup
+            else
+                gs.black_setup = setup
+            gs.state = State.Waiting
             //@ts-ignore
-            this.gs.state = State.Waiting; this.marked = undefined
+            this.marked = undefined
         },
         end_turn : function()
         {
@@ -329,7 +371,7 @@ let gui_ob =
             let c : Client = window.c
             //@ts-ignore
             let ts : TurnState = this.ts
-            c.gs.apply(ts.move_buffer)
+            c.gs.apply(ts.move_buffer.slice())
             c.send({type: Msg.MoveSet, data: ts.move_buffer.map(m => m.to_json())})
             ts.reset()
         },
@@ -348,7 +390,7 @@ let gui_ob =
             //@ts-ignore
             else if(this.your_turn)
             {
-                console.log("Clicking on a piece")
+                ////console.log("Clicking on a piece")
                 //@ts-ignore
                 if(bp == this.marked)
                 {
@@ -410,7 +452,7 @@ let gui_ob =
             let to_d : Dir = to_dir(from, to)
             return function(p : Pos)
             {
-                console.log("Part one of the push/pull saga")
+                ////console.log("Part one of the push/pull saga")
                 let secondary_markers = []
                 for(let [dest_p, tt] of dests)
                 {
@@ -445,7 +487,7 @@ let gui_ob =
             let vm = this
             return function()
             {
-                console.log("Stepping away!")
+                ////console.log("Stepping away!")
                 //@ts-ignore
                 let bp = vm.marked
                 //@ts-ignore
@@ -486,9 +528,15 @@ let gui_ob =
                 this.marked = bp
             }
         },
+        //History
+        history: function()
+        {
+            //@ts-ignore
+            return this.gs.history()
+        },
         // Utility methods
         gen_log: function(data : any){
-            console.log(`Generic log: ${data}`)
+            //console.log(`Generic log: ${data}`)
         },
         pos: function (p: Pos) {
             return { top: this.offset(p.y), left: this.offset(p.x) }

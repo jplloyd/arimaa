@@ -31,43 +31,45 @@
 				<!-- Board and related stuff -->
 				<div class="board" v-if="show_board">
 					<div style="position:relative;" class="innerboard">
-						<!--Board numbering/lettering-->
-						<template v-for="i in 16">
-							<div class="marking lettering" :style="letter_pos(i > 8, (i-1)%8)"><span>{{board_letter((i-1)%8)}}<span></div>
-						</template>
-						<template v-for="i in 16">
-							<div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
-						</template>
 						<!--Pieces - playing-->
 						<template v-for="bp in pieces">
 							<div
-								class="square piece_a"
+								class="square_button piece_a"
 								:class="[bp.piece.class(), {marked : bp == marked}]"
 								:style="[pos(bp.pos), {opacity: bp.alive ? 1 : 0, zIndex: bp.alive ? 2 : 1}]"
 								v-on="piece_blah(bp)">
-							</div>
+						</div>
 						</template>
 						<!-- Markers -->
 						<template v-if="markers != undefined" v-for="m in markers">
 							<template v-if="m.trapped.occupied">
-								<div :style="pos(m.trapped.pos)" class="square skull"></div>
+								<div :style="pos(m.trapped.pos)" class="square_button skull"></div>
 							</template>
-							<div class="square" :class="m.class" :style="pos(m.to)" @click.stop="m.cb"></div>
+							<div class="square_button" :class="m.class" :style="pos(m.to)" @click.stop="m.cb"></div>
+						</template>
+						<!--Board numbering/lettering-->
+						<template v-once v-for="i in 16">
+							<div class="marking lettering" :style="letter_pos(i > 8, (i-1)%8)"><span>{{board_letter((i-1)%8)}}<span></div>
+						</template>
+						<template v-once v-for="i in 16">
+							<div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
 						</template>
 					</div>
 				</div>
+				<!-- Controls -->
 				<button class="actionbutton" v-if="piece_setup && !sent_setup" @click="send_setup">Confirm piece setup</button>
 				<button v-if="moves_made > 0" class="actionbutton" @click="ts.undo()">Undo</button>
 				<button v-if="moves_made > 0" class="actionbutton" @click="ts.reset()">Reset turn</button>
 				<template v-if="valid_turn">
-					<br />
-					<br />
 					<button class="actionbutton" style="height:4em" @click="end_turn">End turn</button>
 				</template>
+				<!-- Setup and history -->
 				<div
-					style="text-align:center; font-family:monospace; font-size:1em; font-weight: bold; display:flex; flex-direction:column-reverse;">
-					<div v-for="h, i in gs.move_history" style="padding:10px;" :class="[i%2 == 0 ? 'white_history' : 'black_history']">
-						<div v-for="m in h"> {{m.toString()}} </div>
+					style="text-align:center; font-family:monospace; font-size:1em; font-weight: bold; display:flex; flex-direction: column-reverse;">
+					<div v-if="gs.white_setup" class="entry w_hist">{{gs.white_setup}}</div>
+					<div v-if="gs.black_setup" class="entry b_hist">{{gs.black_setup}}</div>
+					<div v-for="h, i in gs.move_history" class="entry" :class="['w_hist','b_hist'][i%2]">
+						<span v-for="m in h"> {{m.toString()}}</span>
 					</div>
 				</div>
 			</div>

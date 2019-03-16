@@ -283,7 +283,7 @@ class Trapped
 
     toString() : string
     {
-        return this.occupied ? `${this.piece}${this.pos}x` : ''
+        return this.occupied ? ` ${this.piece}${this.pos}x` : ''
     }
 
     descr() : string
@@ -395,10 +395,13 @@ class Step
         rs.apply(board)
     }
 
-    toString() : string
+    toString(pp? : Maybe<boolean>) : string
     {
-        let str = `${this.piece}${this.from}${dirs[this.to]} ${this.trapped}`
-        return str
+        let str = `${this.piece}${this.from}${dirs[this.to]}${this.trapped}`
+        if(pp)
+            return str
+        else
+            return `[ ${str} ]`
     }
 
     descr() : string
@@ -501,7 +504,7 @@ class PushPull
 
     toString() : string
     {
-        return `${this.step1} ${this.step2}`
+        return `< ${this.step1.toString(true)} ${this.step2.toString(true)} >`
     }
 
     descr() : string
@@ -1096,8 +1099,8 @@ enum State {
 // Status or state
 class GameState
 {
-    black_setup : Maybe<BoardSetup>
-    white_setup : Maybe<BoardSetup>
+    black_setup : BoardSetup | false
+    white_setup : BoardSetup | false
     move_history : Move[][]
     board : Board
     state : State
@@ -1109,13 +1112,24 @@ class GameState
         this.move_history = []
         this.state = State.PreGame
         this.winner = undefined
+        this.black_setup = false
+        this.white_setup = false
+    }
+
+    history() : any[]
+    {
+        console.log("History recalculated")
+        let ws : any[][] = this.white_setup ? [[this.white_setup]] : []
+        let bs : any[][] = this.black_setup ? [[this.black_setup]] : []
+        let ms : any[][] = this.move_history
+        return ws.concat(bs).concat(ms)
     }
 
     clone(gs : GameState) : void
     {
         console.warn("Potentially unsafe clone operation (move history in game state)")
-        this.white_setup = gs.white_setup == undefined ? undefined : gs.white_setup.copy()
-        this.black_setup = gs.black_setup == undefined ? undefined : gs.black_setup.copy()
+        this.white_setup = gs.white_setup ? gs.white_setup.copy() : false
+        this.black_setup = gs.black_setup ? gs.black_setup.copy() : false
         list_replace(this.move_history, gs.move_history.map(l => l.map(m => Move.from_json(m.to_json()))))
         this.board.clone(gs.board)
         this.state = gs.state
@@ -1151,8 +1165,8 @@ class GameState
         gs.move_history = mh.map(l => l.map(m => Move.from_json(m)))
         let ws = l[3]
         let bs = l[4]
-        gs.white_setup = ws != 0 ? BoardSetup.from_json(ws) : undefined
-        gs.black_setup = bs != 0 ? BoardSetup.from_json(bs) : undefined
+        gs.white_setup = ws != 0 ? BoardSetup.from_json(ws) : false
+        gs.black_setup = bs != 0 ? BoardSetup.from_json(bs) : false
         let w = l[5]
         gs.winner = w == 0 ? undefined : w-1
         return gs
