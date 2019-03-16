@@ -31,7 +31,7 @@
 				<!-- Board and related stuff -->
 				<div class="board" v-if="show_board">
 					<div style="position:relative;" class="innerboard">
-						<!--Pieces - playing-->
+						<!--Pieces -->
 						<template v-for="bp in pieces">
 							<div
 								class="square_button piece_a"
@@ -58,10 +58,11 @@
 				</div>
 				<!-- Controls -->
 				<button class="actionbutton" v-if="piece_setup && !sent_setup" @click="send_setup">Confirm piece setup</button>
-				<button v-if="moves_made > 0" class="actionbutton" @click="ts.undo()">Undo</button>
-				<button v-if="moves_made > 0" class="actionbutton" @click="ts.reset()">Reset turn</button>
+				<button v-if="moves_made > 0" class="actionbutton"
+					style="display:inline-block; width:50%" @click="ts.undo()">Undo</button><button v-if="moves_made > 0" class="actionbutton"
+					style="display:inline-block; width:50%" @click="ts.reset()">Reset turn</button>
 				<template v-if="valid_turn">
-					<button class="actionbutton" style="height:4em" @click="end_turn">End turn</button>
+					<button class="actionbutton" @click="end_turn">End turn</button>
 				</template>
 				<!-- Setup and history -->
 				<div

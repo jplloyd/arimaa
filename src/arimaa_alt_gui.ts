@@ -309,7 +309,7 @@ let gui_ob =
         //@ts-ignore
         state : function() {return this.gs.state},
         //@ts-ignore
-        your_turn: function() {return this.turn == this.player && !moving},
+        your_turn: function() {return this.turn == this.player && !this.moving},
         //@ts-ignore
         state: function() {return this.gs.state},
         //@ts-ignore
