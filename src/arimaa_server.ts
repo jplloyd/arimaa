@@ -139,7 +139,7 @@ class GameSession
     }
 
     /**
-     * Ensure that the board state x player turn does not reoccur more than 3 times 
+     * Ensure that the board state x player turn does not reoccur more than 3 times
      * by keeping track of the pairs along with a counter. Return true if the state
      * would reoccur for the third time.
      * @param board Board state to test
@@ -370,7 +370,10 @@ class GameSession
                         else if (!s.white.connection && s.white.id == code)
                             s.white.connection = conn
                         else
+                        {
+                            conn.close()
                             throw "Received state request without valid (and unoccupied) side code"
+                        }
                     }
                     if(this.state() == State.PreGame && this.conns.length > 1)
                     {
