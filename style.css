@@ -96,7 +96,6 @@ body
     display: table;
     font-family: sans-serif;
     position:absolute;
-    user-select: none;
 }
 
 .marking span

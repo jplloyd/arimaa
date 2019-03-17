@@ -17,7 +17,8 @@
 		</head>
 		<body onload="setup()">
 			<div id="main" @click="function(){}">
-				<div id="info_board">{{status}} <template v-if="your_turn"> ~ Moves made: {{moves_made}}</template></div>
+				<div id="info_board" ><span v-html="status"></span><template v-if="your_turn"> [Moves made: {{moves_made}}]</template></div>
+				<button v-if="disconnected" class="actionbutton" @click="reconnect">Reconnect</button>
 				<!-- Side picking utility -->
 				<template v-if="side_pick">
 				<div id="side_pick">

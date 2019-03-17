@@ -1083,7 +1083,8 @@ function list_replace<T>(a : T[], b : T[])
 // Game and server states
 
 enum State {
-    Unknown,
+    Disconnected,
+    Connecting,
     PreGame,
     Waiting,
     SidePick,

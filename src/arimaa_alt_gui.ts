@@ -63,6 +63,7 @@ class Client
 {
     //@ts-ignore
     server : WebSocket
+    side_code : Maybe<string>
     // We don't know the state of the game until
     // the server has been contacted.
     gs : GameState
@@ -72,7 +73,7 @@ class Client
     constructor()
     {
         this.gs = new GameState()
-        this.gs.state = State.Unknown
+        this.gs.state = State.Disconnected
 
         this.ts = new TurnState(this.gs.board)
         //@ts-ignore
@@ -97,6 +98,7 @@ class Client
     connect() : boolean
     {
         try {
+            this.gs.state = State.Connecting
             let ip = window.location.hostname
             //@ts-ignore
             this.server = new window.WebSocket(`ws://${ip}:3000`)
@@ -109,6 +111,7 @@ class Client
         } catch (error) {
             //@ts-ignore
             this.server = undefined
+            this.gs.state = State.Disconnected
             return false
         }
     }
@@ -122,7 +125,14 @@ class Client
 
     request_state()
     {
-        this.send({type : Msg.StateRequest})
+        let msg = {type : Msg.StateRequest, code: "-1"}
+        if(window.location.hash.length > 1)
+        {
+            let code = window.location.hash.slice(1)
+            msg.code = code
+            //console.log(`Sending code: ${code}`)
+        }
+        this.send(msg)
     }
 
     send(s : any)
@@ -139,7 +149,7 @@ class Client
     {
         //console.log("Connection is closing - better tell the user")
         this.vm.connected = false
-        this.gs.state = State.Unknown
+        this.gs.state = State.Disconnected
     }
 
     initiate()
@@ -155,6 +165,9 @@ class Client
         {
             case State.PieceSetup:
                 this.vm.player = data.side
+                this.side_code = <string>data.code
+                //console.log(`Setting side code: ${this.side_code}`)
+                window.location.hash = this.side_code
                 break;
             case State.WhitesTurn:
             case State.BlacksTurn:
@@ -309,6 +322,8 @@ let gui_ob =
         //@ts-ignore
         state : function() {return this.gs.state},
         //@ts-ignore
+        disconnected: function(){return this.state == State.Disconnected},
+        //@ts-ignore
         your_turn: function() {return this.turn == this.player && !this.moving},
         //@ts-ignore
         state: function() {return this.gs.state},
@@ -335,6 +350,11 @@ let gui_ob =
     },
     methods : {
         //Server related methods
+        reconnect: function()
+        {
+            //@ts-ignore
+            window.c.connect()
+        },
         confirm_choice: function()
         {
             //@ts-ignore
@@ -570,8 +590,10 @@ function status_msg(s : State)
 {
     switch(s)
     {
-        case State.Unknown:
-            return "Status unknown"
+        case State.Disconnected:
+            return '<b>Disconnected</b>'
+        case State.Connecting:
+            return "Connecting..."
         case State.PreGame:
             return "Waiting for opponent to connect"
         case State.Waiting:

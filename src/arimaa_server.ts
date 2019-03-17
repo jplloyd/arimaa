@@ -52,7 +52,7 @@ interface Message
     type : Msg
 }
 
-type SideEntry = Maybe<{id : string, connection : Maybe<connection>}>
+type SideEntry = {id : string, connection : Maybe<connection>}
 
 /**
  * Maintains information about sides, connections
@@ -76,7 +76,16 @@ class GameSession
     constructor(gs : GameState)
     {
         this.gs = gs
-        this.side = {white : undefined, black : undefined}
+        let id_w : number = Math.round(Math.random()*1024)
+        let id_b : number
+        do {
+            id_b = Math.round(Math.random()*1024)
+        } while (id_w == id_b);
+
+        this.side = {
+            white: { id: id_w.toString(), connection: undefined },
+            black: { id: id_b.toString(), connection: undefined }
+        }
         this.piece_setups = {white : undefined, black : undefined}
     }
 
@@ -166,9 +175,9 @@ class GameSession
     {
         if(typeof conn == "number")
         {
-            if(conn == Player.White && this.side.white && this.side.white.connection)
+            if(conn == Player.White && this.side.white.connection)
                 conn = this.side.white.connection
-            else if(conn == Player.Black && this.side.black && this.side.black.connection)
+            else if(conn == Player.Black && this.side.black.connection)
                 conn = this.side.black.connection
             else
                 warning(`Failed to send message to ${Player[conn]}`)
@@ -185,9 +194,9 @@ class GameSession
         if(this.state() > State.SidePick)
         {
              // Verify that the request is coming from a registered connection
-            if(this.side.white && this.side.white.connection == conn)
+            if(this.side.white.connection == conn)
                 data.side = Player.White
-            else if(this.side.black && this.side.black.connection == conn)
+            else if(this.side.black.connection == conn)
                 data.side = Player.Black
             else
             {
@@ -196,17 +205,17 @@ class GameSession
             }
         }
 
-        switch(this.state())
+        switch (this.state())
         {
             case State.PreGame:
             case State.SidePick:
                 this.send(conn, Msg.StateSend, data)
                 break
             case State.PieceSetup:
-                if(this.side.black && this.side.black.connection == conn && this.piece_setups.white)
+                if (this.side.black.connection == conn && this.piece_setups.white)
                     data.setup = this.piece_setups.white.to_json()
                 this.send(conn, Msg.StateSend, data)
-            break
+                break
             case State.WhitesTurn:
             case State.BlacksTurn:
             case State.WhiteWins:
@@ -230,7 +239,7 @@ class GameSession
         let add = true
         for(let entry of this.side_choices)
         {
-            if(entry[0] == conn) // Modify this for local testing
+            if(entry[0] == conn)
             {
                 entry[1] = choice
                 add = false
@@ -254,14 +263,14 @@ class GameSession
             else
                 [white, black] = [c2, c1]
 
-            this.side.white = {id : white.remoteAddress, connection: white}
-            this.side.black = {id : black.remoteAddress, connection: black}
+            this.side.white.connection = white
+            this.side.black.connection = black
 
             info("Both players have chosen their sides - moving on to setup")
             this.set_state(State.PieceSetup)
 
-            let white_msg = {state: this.state(), side : Player.White}
-            let black_msg = {state: this.state(), side : Player.Black}
+            let white_msg = {state: this.state(), side : Player.White, code: this.side.white.id}
+            let black_msg = {state: this.state(), side : Player.Black, code: this.side.black.id}
 
             this.send(white, Msg.StateUpdate, white_msg)
             this.send(black, Msg.StateUpdate, black_msg)
@@ -278,12 +287,12 @@ class GameSession
         let setup : BoardSetup = BoardSetup.from_json(message.data)
         // TODO: Add validation
 
-        if(this.side.white!.connection == conn)
+        if(this.side.white.connection == conn)
         {
             this.piece_setups.white = setup
             this.send(Player.Black, Msg.PieceSetup, {setup : message.data})
         }
-        else if(this.side.black!.connection == conn)
+        else if(this.side.black.connection == conn)
             this.piece_setups.black = setup
 
         if(this.piece_setups.white && this.piece_setups.black)
@@ -316,7 +325,7 @@ class GameSession
             return
         }
         let sd = this.side
-        let valid_conn = s == State.WhitesTurn ? sd.white!.connection : sd.black!.connection
+        let valid_conn = s == State.WhitesTurn ? sd.white.connection : sd.black.connection
         if(conn != valid_conn)
         {
             warning("Received move set from player whose turn it is not!")
@@ -353,18 +362,21 @@ class GameSession
                 case Msg.StateRequest:
                     if (this.state() > State.SidePick) {
                         let s = this.side
-                        if (s.black != undefined && s.black.connection == undefined && s.black.id == conn.remoteAddress)
+                        let code : string = message.code ? message.code : "-1"
+                        if(code != "-1")
+                            info(`Code received along with state request: ${code}`)
+                        if (!s.black.connection && s.black.id == code)
                             s.black.connection = conn
-                        else if (s.white != undefined && s.white.connection == undefined && s.white.id == conn.remoteAddress)
+                        else if (!s.white.connection && s.white.id == code)
                             s.white.connection = conn
+                        else
+                            throw "Received state request without valid (and unoccupied) side code"
                     }
                     if(this.state() == State.PreGame && this.conns.length > 1)
                     {
                         this.gs.state = State.SidePick
                         for(let c of this.conns)
-                        {
                             this.send_state(c)
-                        }
                     }
                     else
                         this.send_state(conn)
@@ -395,9 +407,9 @@ class GameSession
     close_connection(conn : connection, code : number, desc : string)
     {
         // If the connection is already associated to a side, unset it
-        if(this.side.white && this.side.white.connection == conn)
+        if(this.side.white.connection == conn)
             this.side.white.connection = undefined
-        else if(this.side.black && this.side.black.connection == conn)
+        else if(this.side.black.connection == conn)
             this.side.black.connection = undefined
 
         // Clear existing side choices
