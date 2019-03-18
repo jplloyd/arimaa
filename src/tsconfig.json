@@ -1,5 +1,5 @@
 {
-  "files": ["arimaa_alt.ts", "arimaa_alt_gui.ts", "arimaa_server.ts", "arimaa_tests.ts"],
+  "files": ["arimaa.ts", "gui.ts", "server.ts", "tests.ts"],
   //"exclude":["arimaa.ts", "./old/arimaa.ts"],
   "compilerOptions": {
     /* Basic Options */

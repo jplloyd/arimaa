@@ -1,3 +1,0 @@
-#!/bin/bash
-cat arimaa_alt.js arimaa_server.js > rserver.js && node rserver.js;
-rm rserver.js
