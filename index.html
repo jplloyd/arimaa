@@ -17,7 +17,7 @@
 		</head>
 		<body onload="setup()">
 			<div id="main" @click="function(){}">
-				<div id="info_board" ><span v-html="status"></span><template v-if="your_turn">&emsp;[Moves: {{moves_made}}]</template></div>
+				<div id="info_board" ><span v-html="status"></span><template v-if="your_turn">&emsp;[ Moves: {{moves_made}} ]</template></div>
 				<button v-if="disconnected" class="actionbutton" @click="reconnect">Reconnect</button>
 				<!-- Side picking utility -->
 				<template v-if="side_pick">
@@ -57,6 +57,12 @@
 						</template>
 					</div>
 				</div>
+				<!-- Current move set -->
+				<div v-if="ts.move_buffer.length > 0" class="moves">
+					<div class="entry" :class="['w_hist','b_hist'][player]">
+						<span v-for="m in ts.move_buffer"> {{m.toString()}}</span>
+					</div>
+				</div>
 				<!-- Controls -->
 				<button class="actionbutton" v-if="piece_setup && !sent_setup" @click="send_setup">Confirm piece setup</button>
 				<button v-if="moves_made > 0" class="actionbutton"
@@ -66,8 +72,7 @@
 					<button class="actionbutton" @click="end_turn">End turn</button>
 				</template>
 				<!-- Setup and history -->
-				<div
-					style="text-align:center; font-family:monospace; font-size:1em; font-weight: bold; display:flex; flex-direction: column-reverse;">
+				<div class="moves" >
 					<div v-if="gs.white_setup" class="entry w_hist">{{gs.white_setup}}</div>
 					<div v-if="gs.black_setup" class="entry b_hist">{{gs.black_setup}}</div>
 					<div v-for="h, i in gs.move_history" class="entry" :class="['w_hist','b_hist'][i%2]">
