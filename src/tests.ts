@@ -69,6 +69,7 @@ namespace Tests {
     var pp4 = new PushPull(p3, p1, new Pos(6, 5), Dir.West, Dir.West, [nothing_trapped, new Trapped(new Pos(2, 5), p3)])
     var pp5 = new PushPull(p3, p1, new Pos(6, 5), Dir.West, Dir.West, [new Trapped(new Pos(5, 2), p1), new Trapped(new Pos(2, 5), p3)])
     export var pp6 = new PushPull(p5, p4, new Pos(4, 6), Dir.South, Dir.South, nn)
+    var pp7 = new PushPull(p4, p5, new Pos(4, 4), Dir.North, Dir.North, nn)
 
 
     var m1 = new Move(st1)
@@ -290,13 +291,13 @@ namespace Tests {
     {
         let tbcopy = db.copy()
         let before = Date.now()
-        let res = false
+        let res : boolean = false
         for(let i = 0; i < 100000; i++)
         {
             res = tbcopy.equals(db)
         }
         let after = Date.now()
-
+        console.log(`${res}`)
         console.info(`TIME: ${after - before}ms`)
     }
 
@@ -351,6 +352,13 @@ namespace Tests {
         console.log(`Duplicate hashes: up to ${duplis} (${100*(1 - duplis/t_no)}% unique)`)
     }
 
+    function misc_tests()
+    {
+        assert(pp6.is_inverse(pp7), `These moves should be the inverse of each other: f⁻¹(${pp6}) == ${pp7}`)
+        assert(pp7.is_inverse(pp6), `Inverstability should be commutative: f⁻¹(${pp7}) == ${pp6}`)
+        assert(!pp5.is_inverse(pp6), `These moves should not be inverses of each other: ${pp5} ${pp6}`)
+    }
+
     export function run_tests() : void {
 
         // Reset error count
@@ -362,6 +370,7 @@ namespace Tests {
                 console.error(i);
         }
         board_tests()
+        misc_tests()
         console.info(`Tests passed: (${tests_passed}/${tests_failed + tests_passed})`)
         if(tests_failed != 0)
             console.error(`${tests_failed} tests failed!`)
