@@ -6,8 +6,8 @@
         <link rel=stylesheet type="text/css" href="style.css" />
 				<script src="vue@2.6.8.js"></script>
 				<!-- <script src="vue.min.js"></script> -->
-				<script src="src/arimaa_alt.js"></script>
-				<script src="src/arimaa_alt_gui.js"></script>
+				<script src="src/arimaa.js"></script>
+				<script src="src/gui.js"></script>
 				<script type="text/javascript">
 					let setup = function () {
 						c = new Client()
@@ -16,15 +16,15 @@
 				</script>
 		</head>
 		<body onload="setup()">
-			<div id="main" @click="function(){}">
+			<div id="main">
 				<div id="info_board" ><span v-html="status"></span><template v-if="your_turn">&emsp;[ Moves: {{moves_made}} ]</template></div>
 				<button v-if="disconnected" class="actionbutton" @click="reconnect">Reconnect</button>
 				<!-- Side picking utility -->
 				<template v-if="side_pick">
 				<div id="side_pick">
-					<a href="#" class="side_choice piece_a E black" :class="{chosen : side_choice == 0}" @click="side_choice = 0"></a>
+					<a href="#" class="side_choice piece E black" :class="{chosen : side_choice == 0}" @click="side_choice = 0"></a>
 					<a href="#" class="side_choice ambiv beige" :class="{chosen : side_choice == 2}" @click="side_choice = 2"></a>
-					<a href="#" class="side_choice piece_a e_ white" :class="{chosen : side_choice == 1}" @click="side_choice = 1"></a>
+					<a href="#" class="side_choice piece e_ white" :class="{chosen : side_choice == 1}" @click="side_choice = 1"></a>
 				</div>
 				<br/>
 				<button style="height:2cm;" v-if="side_choice != -1" class="actionbutton" @click="confirm_choice">Confirm choice</button>
@@ -32,28 +32,22 @@
 				<!-- Board and related stuff -->
 				<div class="board" v-if="show_board">
 					<div style="position:relative;" class="innerboard">
+						<!--Board numbering/lettering-->
+						<template v-once v-for="i in 16">
+							<div class="marking lettering" :style="letter_pos(i > 8, (i-1)%8)"><span>{{board_letter((i-1)%8)}}<span></div>
+							<div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
+						</template>
 						<!--Pieces -->
-						<template v-for="bp in pieces">
-							<div
-								class="square_button piece_a"
-								:class="[bp.piece.class(), {marked : bp == marked}]"
-								:style="[pos(bp.pos), {opacity: bp.alive ? 1 : 0, zIndex: bp.alive ? 2 : 1}]"
-								v-on="piece_blah(bp)">
-						</div>
+						<template v-for="gbp in pieces">
+							<div class="square piece" :class="gbp.css(marked)" :style="[pos(gbp.bp.pos)]" v-on="piece_cb(gbp.bp)">
+							</div>
 						</template>
 						<!-- Markers -->
 						<template v-if="markers != undefined" v-for="m in markers">
 							<template v-if="m.trapped.occupied">
-								<div :style="pos(m.trapped.pos)" class="square_button skull"></div>
+								<div :style="pos(m.trapped.pos)" class="square skull"></div>
 							</template>
-							<div class="square_button" :class="m.class" :style="pos(m.to)" @click.stop="m.cb"></div>
-						</template>
-						<!--Board numbering/lettering-->
-						<template v-once v-for="i in 16">
-							<div class="marking lettering" :style="letter_pos(i > 8, (i-1)%8)"><span>{{board_letter((i-1)%8)}}<span></div>
-						</template>
-						<template v-once v-for="i in 16">
-							<div class="marking numbering" :style="number_pos(i > 8, (i-1)%8)"><span>{{1+(i-1)%8}}</span></div>
+							<div class="square button" :class="m.class" :style="pos(m.to)" @click.stop="m.cb"></div>
 						</template>
 					</div>
 				</div>

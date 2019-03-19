@@ -133,15 +133,6 @@ class Piece
         return "RCDHMErcdhme"[this.player*6 + this.rank]
     }
 
-    class() : string
-    {
-        let s = this.toString()
-        if(s.toLowerCase() == s)
-            return s+"_"
-        else
-            return s
-    }
-
     stronger(p : Piece) : boolean
     {
         return this.rank > p.rank
@@ -342,6 +333,26 @@ class Step
         this.trapped = trapped
 	}
 
+    to_pos() : Pos
+    {
+        return this.from.step(this.to)
+    }
+
+    is_inverse(m : Step | PushPull) : boolean
+    {
+        if(!this.trapped.occupied && m instanceof Step)
+        {
+            let st1 : Step = this
+            let st2 : Step = m
+            return true &&
+                !st2.trapped.occupied &&
+                st2.from.equals(st1.to_pos()) &&
+                st1.from.equals(st2.to_pos()) &&
+                st1.piece.equals(st2.piece)
+        }
+        return false
+    }
+
     /**
      * Return true if the move is valid for the given board and player turn
      * @param board The board to check the move against
@@ -355,7 +366,7 @@ class Step
             return false
         }
 
-        let to_p = this.from.step(this.to)
+        let to_p = this.to_pos()
         let pred = (
             this.piece.player == turn &&
             this.piece.equals(board.get(this.from)) &&
@@ -376,7 +387,7 @@ class Step
     apply(board : Board) : Board
     {
         let bp = <BoardPiece>board.get_bp(this.from)
-        let to_p = this.from.step(this.to)
+        let to_p = this.to_pos()
         board.set(to_p, bp)
         board.set(this.from, undefined)
         bp.pos.clone(to_p)
@@ -391,7 +402,7 @@ class Step
     {
         if(this.trapped.occupied)
             board.untrap(this.trapped)
-        let rs = new Step(this.piece, this.from.step(this.to), invert(this.to), nothing_trapped)
+        let rs = new Step(this.piece, this.to_pos(), invert(this.to), nothing_trapped)
         rs.apply(board)
     }
 
@@ -447,8 +458,35 @@ class PushPull
         this.dest = dest
         this.trapped = trapped
 
-        this.step1 = new Step(this.to_piece, this.from.step(this.to), this.dest, this.trapped[0])
+        this.step1 = new Step(this.to_piece, this.to_pos(), this.dest, this.trapped[0])
         this.step2 = new Step(this.from_piece, this.from.copy(), this.to, this.trapped[1])
+    }
+
+    to_pos() : Pos
+    {
+        return this.from.step(this.to)
+    }
+
+    dest_pos() : Pos
+    {
+        return this.to_pos().step(this.dest)
+    }
+
+    non_violent() : boolean
+    {
+        return !this.trapped.some(t => t.occupied)
+    }
+
+    is_inverse(m : Step | PushPull)
+    {
+        if(m instanceof PushPull && this.non_violent() && m.non_violent())
+        {
+            let pp1 = this
+            let pp2 = m
+            return pp1.step1.is_inverse(pp2.step2) && pp1.step2.is_inverse(pp2.step1)
+        }
+
+        return false;
     }
 
     /**
@@ -509,7 +547,7 @@ class PushPull
 
     descr() : string
     {
-        let to = this.from.step(this.to)
+        let to : Pos = this.to_pos()
         let desc : string
         if(this.from_piece.stronger(this.to_piece))
             desc = `${this.from_piece.descr()} at ${this.from} moves to the ${Dir[this.to]}, pushing ${this.to_piece.descr()} from ${to} to the ${Dir[this.dest]}`

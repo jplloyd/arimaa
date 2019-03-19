@@ -47,17 +47,25 @@ body {
     background-image: url(img/board.svg)
 }
 
-.piece {
-    background-size: 90%;
-    background-position: center;
-    background-repeat: no-repeat;
+.square {
+    position: absolute;
+    width: 12.5%;
+    height: 12.5%;
+    opacity: 1;
+    z-index: 3;
 }
 
-.piece_a {
+.piece {
     background-image: url(img/pc.svg);
     background-repeat: no-repeat;
     background-size: 600% 200%;
     transition: left 0.5s linear, top 0.5s linear, opacity 0.5s 0.5s linear;
+    z-index: 1;
+}
+
+.dead {
+    z-index: 0;
+    opacity: 0;
 }
 
 .ambiv {
@@ -142,10 +150,6 @@ body {
     margin-left: -2px;
 }
 
-.dead {
-    opacity: 0;
-}
-
 .skull {
     background-image: url(img/altskull.svg);
     background-size: cover;
@@ -192,13 +196,11 @@ body {
     background-color: #a66954;
 }
 
-.square_button {
-    position: absolute;
-    width: 12.5%;
-    height: 12.5%;
-    opacity: 1;
-    z-index: 3;
-    /*transition: left 1s, top 1s;*/
+/*
+    This is purely to allow selective vimium navigation
+*/
+.button{
+    margin:0px;
 }
 
 .pusher {

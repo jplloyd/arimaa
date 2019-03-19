@@ -9,17 +9,62 @@ interface Serializeable
     to_json() : any
 }
 
+/**
+ * Gui board piece wrapper for generating css classes
+ */
+class GuiBP
+{
+    bp : BoardPiece
+    constructor(bp : BoardPiece)
+    {
+        this.bp = bp
+    }
+
+    css(mp : BoardPiece) : (string | {})[]
+    {
+        return [
+            this.bp.alive ? 'button' : 'dead',
+            this.p_class(),
+            {marked : mp == this.bp},
+        ]
+    }
+
+    p_class() : string
+    {
+        let p = this.bp.piece
+        return `${p}${p.player == Player.Black ? '_' : ''}`
+    }
+}
+
 class TurnState
 {
     base_board : Board
     current_board : Board
-    move_buffer : Move[]
+    private move_buffer : Move[]
 
     constructor(base : Board)
     {
         this.base_board = base
         this.current_board = base.copy()
         this.move_buffer = []
+    }
+
+    /**
+     * Immutable getter
+     */
+    moves() : Move[]
+    {
+        return this.move_buffer.slice(0)
+    }
+
+    /**
+     * Add move to buffer, unless the resulting board state can be reduced
+     * to a lesser number of moves, in which case a smaller set of moves are used
+     * @param m Move to add
+     */
+    add_move(m : Move)
+    {
+        this.move_buffer.push(m)
     }
 
     moves_made() : number
@@ -77,7 +122,7 @@ class Client
 
         this.ts = new TurnState(this.gs.board)
         //@ts-ignore
-        gui_ob.data.pieces = this.ts.current_board.pieces
+        gui_ob.data.pieces = this.ts.current_board.pieces.map(bp => new GuiBP(bp))
         //@ts-ignore
         gui_ob.data.gs = this.gs; gui_ob.data.ts = this.ts
         //@ts-ignore
@@ -337,16 +382,6 @@ let gui_ob =
         moves_made: function(){return this.ts.moves_made()},
         //@ts-ignore
         valid_turn: function(){return this.moves_made > 0 && this.moves_made < 5},
-        _history: function()
-        {
-            //@ts-ignore
-            let bs : any[][] = this.gs.black_setup != false ? [[this.gs.black_setup]] : []
-            //@ts-ignore
-            let ws : any[][] = this.gs.white_setup != false ? [[this.gs.white_setup]] : []
-            //@ts-ignore
-            let ms : any[][] = this.gs.move_history
-            return ws.concat(bs).concat(ms)
-        }
     },
     methods : {
         //Server related methods
@@ -391,12 +426,12 @@ let gui_ob =
             let c : Client = window.c
             //@ts-ignore
             let ts : TurnState = this.ts
-            c.gs.apply(ts.move_buffer.slice())
-            c.send({type: Msg.MoveSet, data: ts.move_buffer.map(m => m.to_json())})
+            c.gs.apply(ts.moves())
+            c.send({type: Msg.MoveSet, data: ts.moves().map(m => m.to_json())})
             ts.reset()
         },
         // Piece setup and playing methods
-        piece_blah: function(bp : BoardPiece)
+        piece_cb: function(bp : BoardPiece)
         {
             let vm = this
             return bp.alive ? {click: () =>  vm.piece_click(bp)} : {}
@@ -496,7 +531,7 @@ let gui_ob =
                 let m = new Move(pp)
                 //@ts-ignore
                 let ts : TurnState = vm.ts
-                ts.move_buffer.push(m)
+                ts.add_move(m)
                 ts.current_board.apply_move(m)
                 //@ts-ignore
                 vm.markers = undefined; vm.marked = undefined
@@ -518,7 +553,7 @@ let gui_ob =
                 let dir = to_dir(bp.pos, to)
                 let s = new Step(bp.piece, bp.pos, dir, t)
                 let m = new Move(s)
-                ts.move_buffer.push(m)
+                ts.add_move(m)
                 cb.apply_move(m)
                 //@ts-ignore
                 vm.markers = undefined
