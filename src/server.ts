@@ -121,21 +121,32 @@ class GameSession
      * Validate a sequence of moves against the current game state, guarantees
      * @param moveset Move set to validate against the current game state
      */
-    valid(moveset : Move[]) : boolean
+    valid(moveset : Move[]) : true | MoveError
     {
-        if(moveset.length == 0 || this.state() > State.BlacksTurn || this.state() < State.WhitesTurn)
-            return false
+        if(moveset.length == 0)
+            return MoveError.EmptySet
+        else if (this.state() > State.BlacksTurn || this.state() < State.WhitesTurn)
+            return MoveError.WrongState
+
         let turn : Player = this.state() == State.WhitesTurn ? Player.White : Player.Black
         let cost = 0
         let tmp_board = this.gs.board.copy()
         for(let m of moveset)
         {
-            if(cost + m.move.cost > 4 || !tmp_board.valid_move(m, turn))
-                return false
+            if(cost + m.move.cost > 4)
+                return MoveError.ExcessMoves
+            else if(!tmp_board.valid_move(m, turn))
+                return MoveError.InvalidMove
+
             tmp_board.apply_move(m)
             cost += m.move.cost
         }
-        return !tmp_board.equals(this.gs.board) && !this.state_reoccurence(tmp_board, turn)
+        if(tmp_board.equals(this.gs.board))
+            return MoveError.SameBoard
+        else if(this.state_reoccurence(tmp_board, turn))
+            return MoveError.Reoccurence
+        else
+            return true
     }
 
     /**
@@ -335,7 +346,8 @@ class GameSession
         let ms_json : any[] = message.data
         let ms : Move[] = ms_json.map(m => Move.from_json(m))
 
-        if(this.valid(ms))
+        let valid = this.valid(ms)
+        if(valid === true)
         {
             info("Received valid move set, updating state")
             this.gs.apply(ms)
@@ -350,7 +362,7 @@ class GameSession
         else
         {
             warning("Received an invalid move set!")
-            this.send(conn, Msg.Error, {message : "Invalid move set"})
+            this.send(conn, Msg.InvalidMove, {message : valid})
         }
     }
 

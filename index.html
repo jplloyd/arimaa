@@ -21,13 +21,13 @@
 				<button v-if="disconnected" class="actionbutton" @click="reconnect">Reconnect</button>
 				<!-- Side picking utility -->
 				<template v-if="side_pick">
-				<div id="side_pick">
-					<a href="#" class="side_choice piece E black" :class="{chosen : side_choice == 0}" @click="side_choice = 0"></a>
-					<a href="#" class="side_choice ambiv beige" :class="{chosen : side_choice == 2}" @click="side_choice = 2"></a>
-					<a href="#" class="side_choice piece e_ white" :class="{chosen : side_choice == 1}" @click="side_choice = 1"></a>
-				</div>
-				<br/>
-				<button style="height:2cm;" v-if="side_choice != -1" class="actionbutton" @click="confirm_choice">Confirm choice</button>
+					<div id="side_pick">
+						<a href="#" class="side_choice piece E black" :class="{chosen : side_choice == 0}" @click="side_choice = 0"></a>
+						<a href="#" class="side_choice ambiv beige" :class="{chosen : side_choice == 2}" @click="side_choice = 2"></a>
+						<a href="#" class="side_choice piece e_ white" :class="{chosen : side_choice == 1}" @click="side_choice = 1"></a>
+					</div>
+					<br />
+					<button style="height:4cm;" v-if="side_choice != -1" class="actionbutton" @click="confirm_choice">Confirm	choice</button>
 				</template>
 				<!-- Board and related stuff -->
 				<div class="board" v-if="show_board">
@@ -51,28 +51,39 @@
 						</template>
 					</div>
 				</div>
-				<!-- Current move set -->
-				<div v-if="ts.move_buffer.length > 0" class="moves">
-					<div class="entry" :class="['w_hist','b_hist'][player]">
-						<span v-for="m in ts.move_buffer"> {{m.toString()}}</span>
+				<template v-if="!disconnected">
+					<!-- Current move set -->
+					<div v-if="ts.move_buffer.length > 0" class="moves">
+						<div class="entry" :class="['w_hist','b_hist'][player]">
+							<span v-for="m in ts.move_buffer"> {{m.toString()}}</span>
+						</div>
 					</div>
-				</div>
-				<!-- Controls -->
-				<button class="actionbutton" v-if="piece_setup && !sent_setup" @click="send_setup">Confirm piece setup</button>
-				<button v-if="moves_made > 0" class="actionbutton"
-					style="display:inline-block; width:50%" @click="undo">Undo</button><button v-if="moves_made > 0" class="actionbutton"
-					style="display:inline-block; width:50%" @click="reset">Reset turn</button>
-				<template v-if="valid_turn">
-					<button class="actionbutton" @click="end_turn">End turn</button>
+					<!-- Controls -->
+					<button class="actionbutton" v-if="piece_setup && !sent_setup" @click="send_setup">Confirm piece setup</button>
+					<button v-if="moves_made > 0" class="actionbutton" style="display:inline-block; width:50%"
+						@click="undo">Undo</button><button v-if="moves_made > 0" class="actionbutton"
+						style="display:inline-block; width:50%" @click="reset">Reset turn</button>
+					<template v-if="valid_turn">
+						<button class="actionbutton" @click="end_turn">End turn</button>
+					</template>
+					<!-- Setup and history -->
+					<div class="moves">
+						<div v-if="gs.white_setup" class="entry w_hist">{{gs.white_setup}}</div>
+						<div v-if="gs.black_setup" class="entry b_hist">{{gs.black_setup}}</div>
+						<div v-for="h, i in gs.move_history" class="entry" :class="['w_hist','b_hist'][i%2]">
+							<span v-for="m in h"> {{m.toString()}}</span>
+						</div>
+					</div>
+					<!-- Error message -->
+					<div v-if="error != undefined" class="error_screen">
+						<div class="error_msg">
+							{{error}}
+							<br/>
+							<br/>
+							<button class="actionbutton" @click="error=undefined">Ok</button>
+						</div>
+					</div>
 				</template>
-				<!-- Setup and history -->
-				<div class="moves" >
-					<div v-if="gs.white_setup" class="entry w_hist">{{gs.white_setup}}</div>
-					<div v-if="gs.black_setup" class="entry b_hist">{{gs.black_setup}}</div>
-					<div v-for="h, i in gs.move_history" class="entry" :class="['w_hist','b_hist'][i%2]">
-						<span v-for="m in h"> {{m.toString()}}</span>
-					</div>
-				</div>
 			</div>
 		</body>
 </html>

@@ -1215,6 +1215,15 @@ class GameState
     }
 }
 
+enum MoveError{
+    EmptySet,
+    ExcessMoves,
+    WrongState,
+    SameBoard,
+    Reoccurence,
+    InvalidMove
+}
+
 enum Msg {
     // Messages sent from client
     StateRequest,

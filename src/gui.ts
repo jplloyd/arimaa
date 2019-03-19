@@ -233,6 +233,13 @@ class Client
                     //console.log("Definitely setting the client state here")
                     this.gs.state = data.state
                 }
+                // No move set means the move set we sent was valid
+                else if(this.ts.moves_made() != 0)
+                {
+                    this.gs.apply(this.ts.moves())
+                    this.ts.reset()
+                    this.vm.sending = false
+                }
                 break;
             default:
                 //console.warn(`Unhandled update message for state: ${State[data.state]}!`)
@@ -317,6 +324,11 @@ class Client
                 this.ts.current_board.setup(bs)
                 this.gs.board.setup(bs)
                 break
+            case Msg.InvalidMove:
+                let err = msg.data.message
+                this.vm.error = error_msg(err)
+                this.vm.sending=false
+                break
             default:
                 //console.warn(`Unhandled message: ${msg}`)
                 break
@@ -348,14 +360,15 @@ let gui_ob =
         pieces : undefined,
         player : 0, // The side the client plays
         connected: false,
-        greeting: "Hello, arimaa player",
         gs : undefined,
         ts : undefined,
         side_choice: -1,
         sent_setup: false,
         marked: undefined,
         markers: undefined,
-        moving: false //Moves of the opponent are playing - prevent clicks
+        moving: false, //Moves of the opponent are playing - prevent clicks
+        error: undefined,
+        sending: false
     },
     // Computed methods
     computed : {
@@ -372,7 +385,7 @@ let gui_ob =
         //@ts-ignore
         state: function() {return this.gs.state},
         //@ts-ignore
-        show_board: function(){return this.gs.state >= State.PieceSetup || this.sent_setup},
+        show_board: function(){return !this.disconnected && (this.gs.state >= State.PieceSetup || this.sent_setup)},
         //@ts-ignore
         side_pick: function(){return this.gs.state == State.SidePick},
         //@ts-ignore
@@ -419,16 +432,19 @@ let gui_ob =
             //@ts-ignore
             this.unmark()
         },
-        end_turn : function()
-        {
+        end_turn: function () {
             //@ts-ignore
-            let c : Client = window.c
-            //@ts-ignore
-            let ts : TurnState = this.ts;
-            this.unmark()
-            c.gs.apply(ts.moves())
-            c.send({type: Msg.MoveSet, data: ts.moves().map(m => m.to_json())})
-            ts.reset()
+            if (!this.sending)
+            {
+                //@ts-ignore
+                this.sending = true
+                //@ts-ignore
+                let c: Client = window.c
+                //@ts-ignore
+                let ts: TurnState = this.ts;
+                this.unmark()
+                c.send({ type: Msg.MoveSet, data: ts.moves().map(m => m.to_json()) })
+            }
         },
         unmark()
         {
@@ -584,7 +600,7 @@ let gui_ob =
         undo: function()
         {
             //@ts-ignore
-            this.step.undo()
+            this.ts.undo()
             this.unmark()
         },
         reset: function()
@@ -625,7 +641,7 @@ let gui_ob =
     }
 }
 
-function status_msg(s : State)
+function status_msg(s : State) : string
 {
     switch(s)
     {
@@ -649,5 +665,24 @@ function status_msg(s : State)
             return "White player wins!"
         case State.BlackWins:
             return "Black player wins!"
+    }
+}
+
+function error_msg(me : MoveError) : string
+{
+    switch(me)
+    {
+        case MoveError.EmptySet:
+            return "Somehow you sent no moves, try again"
+        case MoveError.ExcessMoves:
+            return "Received more moves than allowed, try again"
+        case MoveError.InvalidMove:
+            return "You sent an invalid move, complain to the developer and try again"
+        case MoveError.Reoccurence:
+            return "The resulting board state has occured two times already, try again"
+        case MoveError.SameBoard:
+            return "The board has to change between each turn, try again"
+        case MoveError.WrongState:
+            return "The game is not ongoing, don't try again"
     }
 }
