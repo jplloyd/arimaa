@@ -60,8 +60,8 @@
 				<!-- Controls -->
 				<button class="actionbutton" v-if="piece_setup && !sent_setup" @click="send_setup">Confirm piece setup</button>
 				<button v-if="moves_made > 0" class="actionbutton"
-					style="display:inline-block; width:50%" @click="ts.undo()">Undo</button><button v-if="moves_made > 0" class="actionbutton"
-					style="display:inline-block; width:50%" @click="ts.reset()">Reset turn</button>
+					style="display:inline-block; width:50%" @click="undo">Undo</button><button v-if="moves_made > 0" class="actionbutton"
+					style="display:inline-block; width:50%" @click="reset">Reset turn</button>
 				<template v-if="valid_turn">
 					<button class="actionbutton" @click="end_turn">End turn</button>
 				</template>

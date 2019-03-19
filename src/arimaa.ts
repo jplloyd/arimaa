@@ -1155,15 +1155,6 @@ class GameState
         this.white_setup = false
     }
 
-    history() : any[]
-    {
-        console.log("History recalculated")
-        let ws : any[][] = this.white_setup ? [[this.white_setup]] : []
-        let bs : any[][] = this.black_setup ? [[this.black_setup]] : []
-        let ms : any[][] = this.move_history
-        return ws.concat(bs).concat(ms)
-    }
-
     clone(gs : GameState) : void
     {
         console.warn("Potentially unsafe clone operation (move history in game state)")

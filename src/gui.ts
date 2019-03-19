@@ -230,8 +230,7 @@ class Client
                     let ms : Move[] = ms_js.map(i => Move.from_json(i))
                     this.gs.apply(ms.slice())
                     this.handle_move_set(ms)
-                    //this.ts.reset()
-                    ////console.log("Definitely setting the client state here")
+                    //console.log("Definitely setting the client state here")
                     this.gs.state = data.state
                 }
                 break;
@@ -248,13 +247,13 @@ class Client
 
         if(ms.length == 0)
         {
-            ////console.log("No more moves")
+            //console.log("No more moves")
             this.ts.reset()
             this.vm.moving = false
         }
         else
         {
-            ////console.log("Moving")
+            //console.log("Moving")
             let c : Client = this
             let m = ms.shift()
             this.ts.current_board.apply_move(m!)
@@ -299,7 +298,7 @@ class Client
 
     msg_switch(msg : Message)
     {
-        ////console.log("Handling message")
+        //console.log("Handling message")
         switch(msg.type) // For now, we trust the server completely
         {
             case Msg.StateSend:
@@ -418,17 +417,23 @@ let gui_ob =
                 gs.black_setup = setup
             gs.state = State.Waiting
             //@ts-ignore
-            this.marked = undefined
+            this.unmark()
         },
         end_turn : function()
         {
             //@ts-ignore
             let c : Client = window.c
             //@ts-ignore
-            let ts : TurnState = this.ts
+            let ts : TurnState = this.ts;
+            this.unmark()
             c.gs.apply(ts.moves())
             c.send({type: Msg.MoveSet, data: ts.moves().map(m => m.to_json())})
             ts.reset()
+        },
+        unmark()
+        {
+            //@ts-ignore
+            this.marked = undefined; this.markers = undefined
         },
         // Piece setup and playing methods
         piece_cb: function(bp : BoardPiece)
@@ -445,12 +450,11 @@ let gui_ob =
             //@ts-ignore
             else if(this.your_turn)
             {
-                ////console.log("Clicking on a piece")
+                //console.log("Clicking on a piece")
                 //@ts-ignore
                 if(bp == this.marked)
                 {
-                    //@ts-ignore
-                    this.marked = undefined; this.markers = undefined
+                    this.unmark()
                     return;
                 }
 
@@ -490,8 +494,7 @@ let gui_ob =
                 }
                 else
                 {
-                    //@ts-ignore
-                    this.marked = undefined
+                    this.unmark()
                 }
             }
         },
@@ -507,7 +510,7 @@ let gui_ob =
             let to_d : Dir = to_dir(from, to)
             return function(p : Pos)
             {
-                ////console.log("Part one of the push/pull saga")
+                //console.log("Part one of the push/pull saga")
                 let secondary_markers = []
                 for(let [dest_p, tt] of dests)
                 {
@@ -533,8 +536,7 @@ let gui_ob =
                 let ts : TurnState = vm.ts
                 ts.add_move(m)
                 ts.current_board.apply_move(m)
-                //@ts-ignore
-                vm.markers = undefined; vm.marked = undefined
+                vm.unmark()
             }
         },
         step: function(t : Trapped, to : Pos)
@@ -542,11 +544,10 @@ let gui_ob =
             let vm = this
             return function()
             {
-                ////console.log("Stepping away!")
+                //console.log("Stepping away!")
                 //@ts-ignore
                 let bp = vm.marked
-                //@ts-ignore
-                vm.marked = undefined
+                vm.unmark()
                 //@ts-ignore
                 let ts: TurnState = vm.ts
                 let cb: Board = ts.current_board
@@ -555,16 +556,14 @@ let gui_ob =
                 let m = new Move(s)
                 ts.add_move(m)
                 cb.apply_move(m)
-                //@ts-ignore
-                vm.markers = undefined
+                vm.unmark()
             }
         },
         setup_piece: function(bp : BoardPiece)
         {
             //@ts-ignore
             if (bp == this.marked || bp.piece.player != this.player) {
-                //@ts-ignore
-                this.marked = undefined
+                this.unmark()
             }
             //@ts-ignore
             else if (this.marked != undefined) // Shuffle time
@@ -574,8 +573,7 @@ let gui_ob =
                 let m: BoardPiece = this.marked
                 bp.pos.clone(m.pos)
                 m.pos.clone(pos)
-                //@ts-ignore
-                this.marked = undefined
+                this.unmark()
             }
             else // Marking time
             {
@@ -583,11 +581,17 @@ let gui_ob =
                 this.marked = bp
             }
         },
-        //History
-        history: function()
+        undo: function()
         {
             //@ts-ignore
-            return this.gs.history()
+            this.step.undo()
+            this.unmark()
+        },
+        reset: function()
+        {
+            //@ts-ignore
+            this.ts.reset()
+            this.unmark()
         },
         // Utility methods
         gen_log: function(data : any){
