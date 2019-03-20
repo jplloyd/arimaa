@@ -520,10 +520,16 @@ class PushPull
         }
         let st1 = this.step1.valid(board, tp.player, stronger == fp)
         if(!st1)
+        {
             err("Error when validating step 1")
+            return false
+        }
         let st2 = this.step2.valid(this.step1.apply(board.copy()), fp.player, stronger == tp)
         if(!st2)
+        {
             err("Error when validating step 2")
+            return false
+        }
         return st1 && st2
     }
 
@@ -612,6 +618,11 @@ class Move
     toString() : string
     {
         return this.move.toString()
+    }
+
+    is_inverse(m : Move) : boolean
+    {
+        return this.move.is_inverse(m.move)
     }
 }
 type StepInfo = {type : 'step', to : Pos, trapped : Trapped}
@@ -1063,6 +1074,7 @@ class Board
         return new Board(pieces, l[1], l[2])
     }
 
+    // ACHTUNG: Potential performance hog
     copy() : Board
     {
         return Board.from_json(this.to_json())

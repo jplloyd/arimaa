@@ -42,6 +42,11 @@ class TurnState
     current_board : Board
     private move_buffer : Move[]
 
+    // For each move, a list of subsequent moves whose validity depend on this move
+    dependents : [Move, Move[]][] = []
+    // For each move, a list of preceding moves that determines its validity
+    dependencies : [Move, Move[]][] = []
+
     constructor(base : Board)
     {
         this.base_board = base
@@ -58,12 +63,76 @@ class TurnState
     }
 
     /**
-     * Add move to buffer, unless the resulting board state can be reduced
-     * to a lesser number of moves, in which case a smaller set of moves are used
+     * Add move to buffer, first checking if the move is a valid inversion
+     * of an existing move, in which case that move is instead removed
      * @param m Move to add
      */
-    add_move(m : Move)
+    add_move(m : Move, turn : Player)
     {
+        this.current_board.apply_move(m)
+        // Check if the move circles back to an unchanged board
+        if(this.current_board.equals(this.base_board))
+        {
+            this.reset()
+            return;
+        }
+        // Check if the new move is a valid inversion of a previous move
+        for(let i = 0; i < this.dependents.length; i++)
+        {
+            let [m_, ds] = this.dependents[i]
+
+            if(ds.length == 0 && m_.is_inverse(m))
+            {
+                // Remove inverted move from buffer and dependency lists
+                let m_i = this.move_buffer.indexOf(m_)
+                this.move_buffer.splice(m_i, 1)
+                this.dependents.splice(i, 1)
+                this.dependencies.splice(i, 1)
+                // Update dependencies
+                for(let [_, dss] of this.dependents)
+                {
+                    let _i = dss.indexOf(m_)
+                    if(_i != -1)
+                    {
+                        dss.splice(_i, 1)
+                    }
+                }
+                return;
+            }
+        }
+        // Move was not a valid inversion, check which moves this move depends on.
+        // If the move is valid for the base board, it is dependent on no other moves
+        let m_deps : Move[] = []
+        if(!this.base_board.valid_move(m, turn))
+        {
+            let cb = this.current_board.copy()
+            cb.reverse_move(m) // We applied the move prior to the copy
+            // List of moves that we cannot reverse
+            let deps : Move[] = []
+            for(let i = this.dependents.length-1; i >= 0; i--)
+            {
+                let [mm, dpts] = this.dependents[i]
+                let [_, dpcs] = this.dependencies[i]
+                if (deps.indexOf(mm) == -1)
+                {
+                    cb.reverse_move(mm)
+                    if (!cb.valid_move(m, turn))
+                    {
+                        // Move m is directly dependent on preceding move mm
+                        dpts.push(m)
+                        m_deps.push(mm)
+                        cb.apply_move(mm)
+                        deps.splice(0, 0, ...dpcs)
+                    }
+                }
+                else
+                {
+                    deps.splice(0,0,...dpcs)
+                }
+            }
+        }
+        this.dependencies.push([m, m_deps])
+        this.dependents.push([m,[]])
         this.move_buffer.push(m)
     }
 
@@ -87,8 +156,9 @@ class TurnState
     reset() : void
     {
         this.current_board.clone(this.base_board)
-        let mb = this.move_buffer
-        mb.splice(0, mb.length)
+        this.move_buffer.splice(0)
+        this.dependents.splice(0)
+        this.dependencies.splice(0)
     }
 
     undo() : void
@@ -96,6 +166,8 @@ class TurnState
         let m = this.move_buffer.pop()
         if(m != undefined)
         {
+            this.dependents.pop()
+            this.dependencies.pop()
             this.current_board.reverse_move(m)
         }
     }
@@ -549,9 +621,8 @@ let gui_ob =
                 let pp = new PushPull(fromp, top, from, to, dest, [t2, t1])
                 let m = new Move(pp)
                 //@ts-ignore
-                let ts : TurnState = vm.ts
-                ts.add_move(m)
-                ts.current_board.apply_move(m)
+                let ts : TurnState = vm.ts; let p : Player = vm.player
+                ts.add_move(m, p)
                 vm.unmark()
             }
         },
@@ -565,13 +636,12 @@ let gui_ob =
                 let bp = vm.marked
                 vm.unmark()
                 //@ts-ignore
-                let ts: TurnState = vm.ts
+                let ts: TurnState = vm.ts; let p : Player = vm.player
                 let cb: Board = ts.current_board
                 let dir = to_dir(bp.pos, to)
                 let s = new Step(bp.piece, bp.pos, dir, t)
                 let m = new Move(s)
-                ts.add_move(m)
-                cb.apply_move(m)
+                ts.add_move(m, p)
                 vm.unmark()
             }
         },
