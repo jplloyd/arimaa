@@ -311,6 +311,7 @@ class Client
                     this.gs.apply(this.ts.moves())
                     this.ts.reset()
                     this.vm.sending = false
+                    this.gs.state = data.state
                 }
                 break;
             default:
@@ -418,7 +419,7 @@ class Client
             this.msg_switch(data)
         } catch(error)
         {
-            //console.error(`Error when handling message: ${error} Message: ${ev.data}`)
+            console.error(`Error when handling message: ${error} Message: ${ev.data}`)
         }
     }
 }
