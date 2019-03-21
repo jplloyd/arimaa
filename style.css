@@ -114,8 +114,8 @@ body {
     background-color: #160707;
     color: #c28359;
     border: ridge 1px #c28359;
-    width: 100%;
     padding: 1em;
+    flex-grow:1;
     font-size: 1em;
 }
 
@@ -123,6 +123,24 @@ body {
     color: #160707;
     background-color: #c28359;
     border-style: inset;
+}
+
+.actionbutton:disabled
+{
+    background-color:#525050;
+    color: #b98d6f;
+}
+
+.actionbutton:disabled:active
+{
+    background-color:#3b3434;
+    color: #b98d6f;
+}
+
+/* Full width */
+.fw
+{
+    width:100%;
 }
 
 #info_board {
