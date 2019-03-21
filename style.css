@@ -76,9 +76,8 @@ body {
 }
 
 .marked {
-    border: 2px solid #ececec;
-    margin-top: -2px;
-    margin-left: -2px;
+    outline: 1px solid #ececec;
+    outline-offset:-1px;
 }
 
 .marking {
@@ -145,13 +144,12 @@ body {
 }
 
 .death {
-    border: 2px solid red;
-    margin-top: -2px;
-    margin-left: -2px;
+    background-image: url(img/redcircle.svg);
+    background-size: cover;
 }
 
 .skull {
-    background-image: url(img/altskull.svg);
+    background-image: url(img/bonecross.svg);
     background-size: cover;
 }
 
@@ -205,9 +203,8 @@ body {
 }
 
 .pusher {
-    border: white 2px dotted;
-    margin-top: -2px;
-    margin-left: -2px;
+    outline: white 4px double;
+    outline-offset: -4px;
 }
 
 /* Pieces */
