@@ -81,6 +81,8 @@ class GameSession
         do {
             id_b = Math.round(Math.random()*1024)
         } while (id_w == id_b);
+        info(`White side code: <${id_w}>`)
+        info(`Black side code: <${id_b}>`)
 
         this.side = {
             white: { id: id_w.toString(), connection: undefined },
