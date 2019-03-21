@@ -53,15 +53,15 @@
 				</div>
 				<template v-if="!disconnected">
 					<!-- Current move set -->
-					<div v-if="ts.move_buffer.length > 0" class="moves">
+					<div v-if="ts.move_buffer.length > 0" class="moves" style="font-size:1.4em">
 						<div class="entry" :class="['w_hist','b_hist'][player]">
-							<span v-for="m in ts.move_buffer"> {{m.toString()}}</span>
+							<span v-for="m in ts.move_buffer" @click="undo(m)"> {{m.toString()}}</span>
 						</div>
 					</div>
 					<!-- Controls -->
 					<button class="actionbutton" v-if="piece_setup && !sent_setup" @click="send_setup">Confirm piece setup</button>
 					<button v-if="moves_made > 0" class="actionbutton" style="display:inline-block; width:50%"
-						@click="undo">Undo</button><button v-if="moves_made > 0" class="actionbutton"
+						@click="undo(undefined)">Undo</button><button v-if="moves_made > 0" class="actionbutton"
 						style="display:inline-block; width:50%" @click="reset">Reset turn</button>
 					<template v-if="valid_turn">
 						<button class="actionbutton" @click="end_turn">End turn</button>

@@ -136,6 +136,19 @@ class TurnState
         this.move_buffer.push(m)
     }
 
+    print_deps() : string
+    {
+        let res=''
+        for(let i = 0; i < this.move_buffer.length; i++)
+        {
+            let m = this.move_buffer[i]
+            let [_, dps] = this.dependencies[i]
+            let [__, dpn] = this.dependents[i]
+            res += `(${m}) :: deps = [${dps}], :: dpnt = [${dpn}]<br/>`
+        }
+        return res
+    }
+
     moves_made() : number
     {
         let res = 0
@@ -161,14 +174,63 @@ class TurnState
         this.dependencies.splice(0)
     }
 
-    undo() : void
+    // fetch all dependent moves in order of valid reversal
+    // clearing them from the buffers in the process
+    get_dependents(m : Move) : Move[]
     {
-        let m = this.move_buffer.pop()
+        let queue : [Move, Move[]][] = [[m, [m]]] //deps
+        let result : Move[] = []
+        do {
+            let [_, dependents] = <[Move, Move[]]>queue.pop()
+            for(let d of dependents)
+            {
+                let j = this.move_buffer.indexOf(d)
+                this.move_buffer.splice(j,1)
+                this.dependencies.splice(j,1)
+                queue.push(this.dependents.splice(j,1)[0])
+                result.push(d)
+            }
+        } while (queue.length > 0);
+        return result.reverse()
+    }
+
+    undo(m? : Move) : void
+    {
         if(m != undefined)
         {
-            this.dependents.pop()
-            this.dependencies.pop()
-            this.current_board.reverse_move(m)
+            let i = this.move_buffer.indexOf(m)
+            if(i != -1)
+            {
+                let to_revert : Move[] = this.get_dependents(m)
+                for(let rm of to_revert)
+                {
+                    this.current_board.reverse_move(rm)
+                }
+            }
+        }
+        else
+        {
+            m = this.move_buffer.pop()
+            if(m != undefined)
+            {
+                this.dependents.pop()
+                this.dependencies.pop()
+                this.current_board.reverse_move(m)
+            }
+        }
+        // Clear removed moves from dependents
+        // TODO: do this immediately instead?
+        for(let [mm, dpnd] of this.dependents)
+        {
+            for(let mmm of dpnd)
+            {
+                let j = this.move_buffer.indexOf(mmm)
+                if(j == -1)
+                {
+                    dpnd.splice(j,1)
+                    break
+                }
+            }
         }
     }
 }
@@ -668,10 +730,10 @@ let gui_ob =
                 this.marked = bp
             }
         },
-        undo: function()
+        undo: function(m? : Move)
         {
             //@ts-ignore
-            this.ts.undo()
+            this.ts.undo(m)
             this.unmark()
         },
         reset: function()
