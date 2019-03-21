@@ -16,6 +16,14 @@
 				</script>
 		</head>
 		<body onload="setup()">
+			<div style="width:0px; height:0px; overflow:hidden">
+				<div class="death"></div>
+				<div class="E"></div>
+				<div class="ambiv"></div>
+				<div class="clear"></div>
+				<div class="skull"></div>
+				<div class="innerboard"></div>
+			</div>
 			<div id="main">
 				<div id="info_board" ><span v-html="status"></span><template v-if="your_turn">&emsp;[ Moves: {{moves_made}} ]</template></div>
 				<button v-if="disconnected" class="actionbutton" @click="reconnect">Reconnect</button>
