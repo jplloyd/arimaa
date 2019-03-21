@@ -158,12 +158,14 @@ body {
 
 .clear {
     background-image: url(img/circle.svg);
-    background-size: cover;
+    /* background-position: 0% 0%; */
+    background-size: 200% 100%;
 }
 
 .death {
-    background-image: url(img/redcircle.svg);
-    background-size: cover;
+    background-image: url(img/circle.svg);
+    background-position: 100% 0%;
+    background-size: 200% 100%;
 }
 
 .skull {

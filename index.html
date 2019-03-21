@@ -61,8 +61,8 @@
 				</div>
 				<template v-if="!disconnected">
 					<!-- Current move set -->
-					<div v-if="ts.move_buffer.length > 0" class="moves" style="font-size:1.4em">
-						<div class="entry" :class="['w_hist','b_hist'][player]">
+					<div v-if="your_turn" class="moves" style="font-size:1.4em">
+						<div class="entry" :class="['w_hist','b_hist'][player]">&nbsp;
 							<span v-for="m in ts.move_buffer" @click="undo(m)"> {{m.toString()}}</span>
 						</div>
 					</div>
