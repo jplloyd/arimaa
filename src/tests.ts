@@ -44,32 +44,32 @@ namespace Tests {
     var p4 = new Piece(Player.Black, Rank.Camel)
     var p5 = new Piece(Player.White, Rank.Elephant)
 
-    var bp0 = new BoardPiece(p0, new Pos(0, 0), false)
-    var bp1 = new BoardPiece(p1, new Pos(3, 4), true)
-    var bp2 = new BoardPiece(p2, new Pos(2, 3), true)
-    var bp3 = new BoardPiece(p3, new Pos(7, 7), true)
-    var bp4 = new BoardPiece(p0, new Pos(7, 7), false)
+    var bp0 = new BoardPiece(p0, i(0, 0), false)
+    var bp1 = new BoardPiece(p1, i(3, 4), true)
+    var bp2 = new BoardPiece(p2, i(2, 3), true)
+    var bp3 = new BoardPiece(p3, i(7, 7), true)
+    var bp4 = new BoardPiece(p0, i(7, 7), false)
 
-    var t1 = new Trapped(new Pos(2, 5), p1)
-    var t2 = new Trapped(new Pos(5, 5), p3)
-    var t3 = new Trapped(new Pos(2, 2), p0)
+    var t1 = new Trapped(i(2, 5), p1)
+    var t2 = new Trapped(i(5, 5), p3)
+    var t3 = new Trapped(i(2, 2), p0)
 
-    var st0 = new Step(p5, new Pos(4, 1), Dir.North, nothing_trapped)
-    var st1 = new Step(p1, new Pos(3, 4), Dir.North, nothing_trapped)
-    var st2 = new Step(p2, new Pos(3, 4), Dir.North, new Trapped(new Pos(2, 2), p2))
-    var st3 = new Step(p1, new Pos(3, 4), Dir.North, new Trapped(new Pos(5, 5), p2))
-    var st4 = new Step(p0, new Pos(2, 2), Dir.West, nothing_trapped)
-    var st5 = new Step(p3, new Pos(6, 5), Dir.West, new Trapped(new Pos(5, 5), p4))
+    var st0 = new Step(p5, i(4, 1), Dir.North, clr_trps)
+    var st1 = new Step(p1, i(3, 4), Dir.North, clr_trps)
+    var st2 = new Step(p2, i(3, 4), Dir.North, new Trapped(i(2, 2), p2))
+    var st3 = new Step(p1, i(3, 4), Dir.North, new Trapped(i(5, 5), p2))
+    var st4 = new Step(p0, i(2, 2), Dir.West, clr_trps)
+    var st5 = new Step(p3, i(6, 5), Dir.West, new Trapped(i(5, 5), p4))
 
-    var nn : [Trapped, Trapped] = [nothing_trapped, nothing_trapped]
+    var nn : [Trapped, Trapped] = [clr_trps, clr_trps]
 
-    var pp1 = new PushPull(p1, p2, new Pos(4, 5), Dir.North, Dir.South, [t1, nothing_trapped])
-    var pp2 = new PushPull(p3, p1, new Pos(2, 5), Dir.West, Dir.West, [nothing_trapped, t2])
-    var pp3 = new PushPull(p3, p1, new Pos(6, 5), Dir.West, Dir.West, [new Trapped(new Pos(2, 2), p2), nothing_trapped])
-    var pp4 = new PushPull(p3, p1, new Pos(6, 5), Dir.West, Dir.West, [nothing_trapped, new Trapped(new Pos(2, 5), p3)])
-    var pp5 = new PushPull(p3, p1, new Pos(6, 5), Dir.West, Dir.West, [new Trapped(new Pos(5, 2), p1), new Trapped(new Pos(2, 5), p3)])
-    export var pp6 = new PushPull(p5, p4, new Pos(4, 6), Dir.South, Dir.South, nn)
-    var pp7 = new PushPull(p4, p5, new Pos(4, 4), Dir.North, Dir.North, nn)
+    var pp1 = new PushPull(p1, p2, i(4, 5), Dir.North, Dir.South, [t1, clr_trps])
+    var pp2 = new PushPull(p3, p1, i(2, 5), Dir.West, Dir.West, [clr_trps, t2])
+    var pp3 = new PushPull(p3, p1, i(6, 5), Dir.West, Dir.West, [new Trapped(i(2, 2), p2), clr_trps])
+    var pp4 = new PushPull(p3, p1, i(6, 5), Dir.West, Dir.West, [clr_trps, new Trapped(i(2, 5), p3)])
+    var pp5 = new PushPull(p3, p1, i(6, 5), Dir.West, Dir.West, [new Trapped(i(5, 2), p1), new Trapped(i(2, 5), p3)])
+    export var pp6 = new PushPull(p5, p4, i(4, 6), Dir.South, Dir.South, nn)
+    var pp7 = new PushPull(p4, p5, i(4, 4), Dir.North, Dir.North, nn)
 
 
     var m1 = new Move(st1)
@@ -94,7 +94,7 @@ namespace Tests {
             db, gs
         ]
 
-    function makeStep(bp : BoardPiece, dir : Dir, trapped : Trapped = nothing_trapped) : Move
+    function makeStep(bp : BoardPiece, dir : Dir, trapped : Trapped = clr_trps) : Move
     {
         return new Move(new Step(bp.piece, bp.pos, dir, trapped))
     }
@@ -120,8 +120,8 @@ namespace Tests {
         let tb = db.copy() // tb = test board
         assert(tb.equals(db), "Copied board should equal its origin")
 
-        let trap_horse = new Move(new Step(wh, new Pos(2, 1), Dir.North,
-        new Trapped(new Pos(2,2), wh)))
+        let trap_horse = new Move(new Step(wh, i(2, 1), Dir.North,
+        new Trapped(i(2,2), wh)))
 
         assert(tb.valid_move(trap_horse, Player.White), "White horse should be moveable and get trapped")
         tb.apply_move(trap_horse)
@@ -130,7 +130,7 @@ namespace Tests {
         let rabb1 = tb.pieces[0]
         assert(rabb1.piece.equals(new Piece(Player.White, Rank.Rabbit)), "First piece is white rabbit")
         assert(tb.moves(rabb1, Player.White).length == 0, "The white rabbit should be enclosed")
-        let move_cat = new Move(new Step(wc, new Pos(0,1), Dir.North, nothing_trapped))
+        let move_cat = new Move(new Step(wc, i(0,1), Dir.North, clr_trps))
         assert(tb.valid_move(move_cat, Player.White),"White cat can be moved, no casualties")
         tb.apply_move(move_cat)
         assert(tb.moves(rabb1, Player.White).length == 1, "Rabbit can move north")
@@ -141,23 +141,23 @@ namespace Tests {
         assert(tb.equals(db), "After move reversals, board should be back to original state")
 
         tb.apply_move(move_cat)
-        let move_rabb = new Move(new Step(rabb1.piece, rabb1.pos, Dir.North, nothing_trapped))
+        let move_rabb = new Move(new Step(rabb1.piece, rabb1.pos, Dir.North, clr_trps))
 
         assert(tb.valid_move(move_rabb, Player.White), "White rabbit can move north now")
 
         tb.apply_move(move_rabb)
 
-        assert(rabb1.pos.equals(new Pos(0,1)), "White rabbit position should be updated")
+        assert(rabb1.pos == i(0,1), "White rabbit position should be updated")
 
-        let illegal_rabbit = new Move(new Step(rabb1.piece, rabb1.pos, Dir.South, nothing_trapped))
+        let illegal_rabbit = new Move(new Step(rabb1.piece, rabb1.pos, Dir.South, clr_trps))
 
         assert(!tb.valid_move(illegal_rabbit, Player.White), "Rabbits cannot move backwards")
 
-        let be = <BoardPiece>tb.get_bp(new Pos(3,6))
+        let be = <BoardPiece>tb.get(i(3,6))
         assert(be != undefined, "There should be a black elephant at 3x6")
 
         // Note that this move is dynamic due to the shared position
-        let e_move = new Move(new Step(be.piece, be.pos, Dir.South, nothing_trapped))
+        let e_move = new Move(new Step(be.piece, be.pos, Dir.South, clr_trps))
 
         assert(tb.valid_move(e_move, Player.Black), "Black elephant can roam south")
         tb.apply_move(e_move)
@@ -174,40 +174,40 @@ namespace Tests {
 
         tb.apply_move(mw)
 
-        let wm = <BoardPiece>tb.get_bp(new Pos(3, 1))
+        let wm = <BoardPiece>tb.get(i(3, 1))
         assert(wm != undefined, "There is a white camel at 3x1")
         assert(!tb.frozen(wm), "Camel is not frozen")
         assert(!tb.frozen(wm.pos), "Camel is really not frozen")
 
-        let M_move = new Move(new Step(wm.piece, wm.pos, Dir.North, nothing_trapped))
+        let M_move = new Move(new Step(wm.piece, wm.pos, Dir.North, clr_trps))
         assert(tb.valid_move(M_move, Player.White), "Camel can move north")
-        assert(tb.deadly_trap(new Pos(2,2), Player.White) != nothing_trapped, "Trap at 2,2 is deadly atm")
+        assert(tb.deadly_trap(i(2,2), Player.White) != clr_trps, "Trap at 2,2 is deadly atm")
         tb.apply_move(M_move)
         assert(tb.frozen(wm), "Camel is now frozen")
         assert(!tb.valid_move(M_move, Player.White), "Camel can no longer move north")
-        assert(tb.deadly_trap(new Pos(2,2), Player.White).equals(nothing_trapped), "Trap at 2,2 is no longer deadly")
+        assert(tb.deadly_trap(i(2,2), Player.White).equals(clr_trps), "Trap at 2,2 is no longer deadly")
 
         assert(!tb.valid_move(trap_horse, Player.White), "Horse does not die")
-        let safe_horse = new Move(new Step(wh, new Pos(2,1), Dir.North, nothing_trapped))
+        let safe_horse = new Move(new Step(wh, i(2,1), Dir.North, clr_trps))
         assert(tb.valid_move(safe_horse, Player.White), "Horse is now safe to travel north")
 
-        assert(tb.sole_guardian(wm.pos).equals(nothing_trapped), "Camel is not a sole guardian")
+        assert(tb.sole_guardian(wm.pos).equals(clr_trps), "Camel is not a sole guardian")
 
         tb.apply_move(safe_horse)
 
         assert(!tb.frozen(wm), "Camel is no longer frozen")
-        assert(!tb.sole_guardian(wm.pos).equals(nothing_trapped), "Camel is the sole guardian")
+        assert(!tb.sole_guardian(wm.pos).equals(clr_trps), "Camel is the sole guardian")
 
         let br = new Piece(Player.Black, Rank.Rabbit)
-        let legal_r = new Move(new Step(br, new Pos(3, 7), Dir.South, nothing_trapped))
+        let legal_r = new Move(new Step(br, i(3, 7), Dir.South, clr_trps))
         assert(tb.valid_move(legal_r, Player.Black), "Black rabbit can move south")
         tb.apply_move(legal_r)
-        let dubious_r = new Move(new Step(br, new Pos(3, 6), Dir.South, nothing_trapped))
+        let dubious_r = new Move(new Step(br, i(3, 6), Dir.South, clr_trps))
         assert(tb.valid_move(dubious_r, Player.Black), "Black rabbit can take another step")
         dubious_r.move.to = Dir.North
         assert(!tb.valid_move(dubious_r, Player.Black), "Black rabbit cannot move backwards")
-        let moves = tb.moves(<BoardPiece>tb.get_bp(new Pos(3,6)), Player.Black)
-        assert(moves.length == 1 && moves[0].type == "step" && moves[0].to.equals(new Pos(3,5)),
+        let moves = tb.moves(<BoardPiece>tb.get(i(3,6)), Player.Black)
+        assert(moves.length == 1 && moves[0].type == "step" && moves[0].to == i(3,5),
             "Black rabbit should only have 1 move: 1 step to the south")
         moves = tb.moves(be, Player.Black)
         assert(moves.length == 3, "Black elephant should be able to step (2) and push (1)")
@@ -215,60 +215,60 @@ namespace Tests {
         assert(moves.length == 2, "White camel can move north or south")
         moves = tb.moves(wm, Player.Black)
         assert(moves.length == 1 && moves[0].type == "pushpull", "White camel can be pulled by Black elephant")
-        let htrapped = new Trapped(new Pos(2,2), wh)
-        let pp = new PushPull(wm.piece, be.piece, wm.pos, Dir.West, Dir.North, [nothing_trapped, htrapped])
+        let htrapped = new Trapped(i(2,2), wh)
+        let pp = new PushPull(wm.piece, be.piece, wm.pos, Dir.West, Dir.North, [clr_trps, htrapped])
         let pull_camel = new Move(pp)
         assert(tb.valid_move(pull_camel, Player.Black), "The elephant can pull the camel, trapping the horse")
         assert(!tb.valid_move(pull_camel, Player.White), "The camel cannot push the elephant!")
 
         assert(tb.dead_white.length == 0, "There are no dead white pieces")
         tb.apply_move(pull_camel)
-        assert(tb.get(new Pos(2,2)) == undefined, "The trap should now be empty")
+        assert(tb.piece(i(2,2)) == undefined, "The trap should now be empty")
         assert(tb.dead_white.length == 1, "Dead horse should be accounted for")
         assert(!tb.frozen(wm), "Camel, though pulled, is not frozen")
 
         move_val_apply(tb, makeStep(wm, Dir.East), Player.White)
         move_val_apply(tb, makeStep(wm, Dir.North), Player.White)
 
-        move_val_apply(tb, makeStep(<BoardPiece>tb.get_bp(new Pos(3,0)), Dir.North), Player.White)
-        move_val_apply(tb, makeStep(<BoardPiece>tb.get_bp(new Pos(3,1)), Dir.North), Player.White)
+        move_val_apply(tb, makeStep(<BoardPiece>tb.get(i(3,0)), Dir.North), Player.White)
+        move_val_apply(tb, makeStep(<BoardPiece>tb.get(i(3,1)), Dir.North), Player.White)
 
         move_val_apply(tb, makeStep(wm, Dir.North), Player.White)
         move_val_apply(tb, makeStep(wm, Dir.North), Player.White)
 
-        let pp2 = new PushPull(br, wm.piece, new Pos(3,6), Dir.South, Dir.South, [nothing_trapped, nothing_trapped])
+        let pp2 = new PushPull(br, wm.piece, i(3,6), Dir.South, Dir.South, [clr_trps, clr_trps])
         move_val_apply(tb, new Move(pp2), Player.White)
 
-        let pp3 = new PushPull(wm.piece, br, wm.pos, Dir.North, Dir.North, [nothing_trapped, nothing_trapped])
+        let pp3 = new PushPull(wm.piece, br, wm.pos, Dir.North, Dir.North, [clr_trps, clr_trps])
         move_val_apply(tb, new Move(pp3), Player.White)
         move_val_apply(tb, new Move(pp2), Player.White)
 
-        move_val_apply(tb, makeStep(be, Dir.North, nothing_trapped), Player.Black)
+        move_val_apply(tb, makeStep(be, Dir.North, clr_trps), Player.Black)
 
         assert(!tb.valid_move(new Move(pp3), Player.White), "Frozen camels cannot pull")
 
         // Board equality checks
         let tbcopy = tb.copy()
 
-        let rc1 = <BoardPiece>tbcopy.get_bp(new Pos(0,7))
-        let rc2 = <BoardPiece>tbcopy.get_bp(new Pos(7,7))
+        let rc1 = <BoardPiece>tbcopy.get(i(0,7))
+        let rc2 = <BoardPiece>tbcopy.get(i(7,7))
 
-        let r1 = tb.get_bp(new Pos(0,7))
-        let r2 = tb.get_bp(new Pos(7,7))
+        let r1 = tb.get(i(0,7))
+        let r2 = tb.get(i(7,7))
 
         assert(r1 != r2, "The two copied rabbits should not be the same")
         assert(r1 != rc1 && r2 != rc2, "The original and copied rabbits should not be the same")
         assert(tb.equals(tbcopy), "Copied board should equal the original")
 
-        rc1.pos.clone(new Pos(7,7))
-        rc2.pos.clone(new Pos(0,7))
+        rc1.pos = i(7,7)
+        rc2.pos = i(0,7)
         tbcopy.set(rc1.pos,rc1)
         tbcopy.set(rc2.pos,rc2)
 
         assert(tbcopy.equals(tb), "Copied board should still equal the original")
 
         // Unfreeze the camel and do some "moves" tests
-        move_val_apply(tb, makeStep(be, Dir.West, nothing_trapped), Player.Black)
+        move_val_apply(tb, makeStep(be, Dir.West, clr_trps), Player.Black)
         assert(!tb.frozen(wm), "Camel is no longer frozen")
 
         let gss = new GameState()
@@ -317,7 +317,7 @@ namespace Tests {
                 let i;
                 do i = Math.round(Math.random()*63)
                     while(db.board[i]!=undefined)
-                o.pos.clone(Pos.from_index(i))
+                o.pos = i
                 db.board[i] = o
             }
         }

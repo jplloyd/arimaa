@@ -633,7 +633,7 @@ let gui_ob =
                     {
                         if(minf.type == "step")
                         {
-                            let traps = minf.trapped != nothing_trapped
+                            let traps = minf.trapped != clr_trps
                             markers.push({
                                 to: minf.to,
                                 class: traps ? "death" : "clear",
@@ -646,7 +646,7 @@ let gui_ob =
                                 to: minf.to,
                                 class: "pusher",
                                 trapped: minf.trapped,
-                                cb: this.pushpull_start(bp.pos.copy(), minf.to, minf.trapped, minf.dest)
+                                cb: this.pushpull_start(bp.pos, minf.to, minf.trapped, minf.dest)
                             })
                         }
                     }
@@ -666,8 +666,8 @@ let gui_ob =
             let vm = this
             //@ts-ignore
             let cb : Board = vm.ts.current_board
-            let fromp : Piece = cb.get_bp(from)!.piece
-            let to_p : Piece = cb.get_bp(to)!.piece
+            let fromp : Piece = cb.get(from)!.piece
+            let to_p : Piece = cb.get(to)!.piece
             let to_d : Dir = to_dir(from, to)
             return function(p : Pos)
             {
@@ -727,11 +727,11 @@ let gui_ob =
             //@ts-ignore
             else if (this.marked != undefined) // Shuffle time
             {
-                let pos = bp.pos.copy()
+                let pos = bp.pos
                 //@ts-ignore
                 let m: BoardPiece = this.marked
-                bp.pos.clone(m.pos)
-                m.pos.clone(pos)
+                bp.pos = m.pos
+                m.pos = pos
                 this.unmark()
             }
             else // Marking time
@@ -757,7 +757,8 @@ let gui_ob =
             //console.log(`Generic log: ${data}`)
         },
         pos: function (p: Pos) {
-            return { top: this.offset(p.y), left: this.offset(p.x) }
+            //let p = c(pp)
+            return { top: this.offset(p>>3), left: this.offset(p&7) }
         },
         board_letter: function (n: number) { return "ABCDEFGH"[n]; },
         offset: function (n: number) {

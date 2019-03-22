@@ -1,4 +1,3 @@
-//import Vue as Vue from "vue/types/vue"
 /* Alternative implementation of arimaa */
 
 /* ------------- Basics --------------- */
@@ -31,89 +30,45 @@ const dirs : string = "nesw"
 
 type Maybe<T> = T | undefined
 
-/* A position on the 8x8 board
-coordinates going horizontally from SE to NW 
-from white's perspective*/
-class Pos
+type Pos = number
+
+function c(p : Pos) : {x : number, y : number}
 {
-    x : number
-    y : number
-    constructor(x : number, y : number)
-    {
-        this.x = x
-        this.y = y
-    }
+    return {x : p & 7, y : p >> 3}
+}
 
-    static from_index(n : number) : Pos
-    {
-        return new Pos(n & 7, n >> 3)
-    }
+function i(x : number, y : number)
+{
+    return y << 3 | x
+}
 
-    toString() : string
-    {
-        return "hgfedcba"[this.x] + String(this.y+1)
-    }
+function p(p : Pos) : string
+{
+    return "hgfedcba"[p&7] + String((p>>3)+1)
+}
 
-    index() : number
-    {
-        return this.y << 3 | this.x
-    }
+function adj(p : Pos): Pos[] {
+    let u : any = undefined
+    let r: Maybe<number>[] = [
+        p%8 > 0 ? p - 1 : u,
+        p%8 < 7 ? p + 1 : u,
+        p > 7 ? p - 8 : u,
+        p < 56 ? p + 8 : u
+    ]
+    return <number[]>r.filter(n=>n != u)
+}
 
-    adjacent() : Pos[] {
-        const p = this
-        let res: Pos[] = []
-        if (p.x > 0)
-            res.push(new Pos(p.x - 1,p.y))
-        if (p.x < 7)
-            res.push(new Pos(p.x + 1, p.y))
-        if (p.y > 0)
-            res.push(new Pos(p.x, p.y - 1))
-        if (p.y < 7)
-            res.push(new Pos(p.x, p.y + 1))
-        return res
-    }
-
-    step(d : Dir) : Pos
-    {
-        switch(d)
-        {
-            case Dir.North:
-                return new Pos(this.x, this.y+1)
-            case Dir.South:
-                return new Pos(this.x, this.y-1)
-            case Dir.East:
-                return new Pos(this.x-1, this.y)
-            case Dir.West:
-                return new Pos(this.x+1, this.y)
-        }
-    }
-
-    equals(p : Pos) : boolean
-    {
-        return p != undefined && this.x == p.x && this.y == p.y
-    }
-
-    copy() : Pos
-    {
-        return new Pos(this.x, this.y)
-    }
-
-    clone(p : Pos) : void
-    {
-        this.x = p.x
-        this.y = p.y
-    }
+function step(p : Pos, d : Dir) : Pos
+{
+    return p + [8,-1,-8,1][d];
 }
 
 /* Direction towards the second point relative to the first point 
    Assumes that the positions are adjacent
 */
-function to_dir(p1 : Pos, p2 : Pos) : Dir
+function to_dir(a : Pos, b : Pos) : Dir
 {
-    if (p1.x == p2.x)
-        return p1.y < p2.y ? 0 : 2
-    else
-        return p1.x > p2.x ? 1 : 3
+    return [3,2,0,1][((b-a)+9)%5] // [n:0,e:1,s:2,w:3] = [2,3,1,0]
 }
 
 /* Basic representation of a piece, independent of the board */
@@ -169,7 +124,7 @@ class Piece
 }
 
 // Placeholders
-let ph_pos = new Pos(0,0)
+let ph_pos = 0
 let ph_pc = new Piece(Player.White, Rank.Rabbit)
 
 /* Concrete piece - part of the game state */
@@ -203,7 +158,7 @@ class BoardPiece
 
     toString() : string
     {
-        return `${this.piece}${this.pos}`
+        return `${this.piece}${p(this.pos)}`
     }
 
     descr() : string
@@ -216,18 +171,18 @@ class BoardPiece
 
     to_json() : any
     {
-        return this.piece.to_json() << 7 | this.pos.index() << 1 | Number(this.alive)
+        return this.piece.to_json() << 7 | this.pos << 1 | Number(this.alive)
     }
 
     static from_json(n : number) : BoardPiece
     {
-        return new BoardPiece(Piece.from_json(n >> 7), Pos.from_index(n>>1 & 63), Boolean(n&1))
+        return new BoardPiece(Piece.from_json(n >> 7), n>>1 & 63, Boolean(n&1))
     }
 
     clone(bp : BoardPiece) : void
     {
         this.piece.clone(bp.piece)
-        this.pos.clone(bp.pos)
+        this.pos = bp.pos
         this.alive = bp.alive
     }
 
@@ -238,9 +193,9 @@ class BoardPiece
 
     equals(bp : BoardPiece)
     {
-            return bp != undefined &&
+            return bp &&
             this.alive == bp.alive &&
-            this.pos.equals(bp.pos) &&
+            this.pos == bp.pos &&
             this.piece.equals(bp.piece)
     }
 }
@@ -253,8 +208,8 @@ const traps : number[] = [18, 21, 42, 45]
 // Index from indices of adjacent squares to their respective traps
 const trap_adj: number[] = []
 for (let t of traps) {
-    for (let a of Pos.from_index(t).adjacent()) {
-        trap_adj[a.index()] = t
+    for (let a of adj(t)) {
+        trap_adj[a] = t
     }
 }
 
@@ -267,14 +222,14 @@ class Trapped
 
     constructor(p : Pos, pc : Piece)
     {
-        this.pos = p.copy()
+        this.pos = p
         this.piece = pc
         this.occupied = true
     }
 
     toString() : string
     {
-        return this.occupied ? ` ${this.piece}${this.pos}x` : ''
+        return this.occupied ? ` ${this.piece}${p(this.pos)}x` : ''
     }
 
     descr() : string
@@ -287,32 +242,32 @@ class Trapped
         if(!this.occupied)
             return 0
         else
-            return (this.piece.to_json() << 2 | traps.indexOf(this.pos.index())) << 1 | 1
+            return (this.piece.to_json() << 2 | traps.indexOf(this.pos)) << 1 | 1
     }
 
     static from_json(n : number) : Trapped
     {
         if(n == 0)
-            return nothing_trapped
+            return clr_trps
         n >>= 1
-        return new Trapped(Pos.from_index(traps[n & 3]), Piece.from_json(n >> 2))
+        return new Trapped(traps[n & 3], Piece.from_json(n >> 2))
     }
 
     equals(t : Trapped) : boolean
     {
-        if(t != undefined)
+        if(t)
         {
             if(this.occupied == false && t.occupied == false)
                 return true
             else
-                return this.occupied == t.occupied && this.piece.equals(t.piece) && this.pos.equals(t.pos)
+                return this.occupied == t.occupied && this.piece.equals(t.piece) && this.pos == t.pos
         }
         return false
     }
 }
 
-const nothing_trapped = new Trapped(ph_pos,ph_pc)
-nothing_trapped.occupied = false
+const clr_trps = new Trapped(ph_pos,ph_pc)
+clr_trps.occupied = false
 
 // ------------------------------------------------- //
 
@@ -328,14 +283,14 @@ class Step
 
 	constructor(piece : Piece, from : Pos, to : Dir, trapped : Trapped) {
         this.piece = piece
-        this.from = from.copy()
+        this.from = from
         this.to = to
         this.trapped = trapped
 	}
 
     to_pos() : Pos
     {
-        return this.from.step(this.to)
+        return step(this.from,this.to)
     }
 
     is_inverse(m : Step | PushPull) : boolean
@@ -346,8 +301,8 @@ class Step
             let st2 : Step = m
             return true &&
                 !st2.trapped.occupied &&
-                st2.from.equals(st1.to_pos()) &&
-                st1.from.equals(st2.to_pos()) &&
+                st2.from == st1.to_pos() &&
+                st1.from == st2.to_pos() &&
                 st1.piece.equals(st2.piece)
         }
         return false
@@ -369,11 +324,11 @@ class Step
         let to_p = this.to_pos()
         let pred = (
             this.piece.player == turn &&
-            this.piece.equals(board.get(this.from)) &&
+            this.piece.equals(board.piece(this.from)) &&
             board.free(to_p) && (moved || !board.frozen(this.from))
         )
 
-        if(traps.indexOf(to_p.index()) != -1)
+        if(traps.indexOf(to_p) != -1)
             return pred && board.deadly_trap(to_p, this.piece.player).equals(this.trapped)
         else
             return pred && board.sole_guardian(this.from).equals(this.trapped)
@@ -386,11 +341,11 @@ class Step
      */
     apply(board : Board) : Board
     {
-        let bp = <BoardPiece>board.get_bp(this.from)
+        let bp = <BoardPiece>board.get(this.from)
         let to_p = this.to_pos()
         board.set(to_p, bp)
         board.set(this.from, undefined)
-        bp.pos.clone(to_p)
+        bp.pos = to_p
         if(this.trapped.occupied)
         {
             board.trap(this.trapped)
@@ -402,13 +357,13 @@ class Step
     {
         if(this.trapped.occupied)
             board.untrap(this.trapped)
-        let rs = new Step(this.piece, this.to_pos(), invert(this.to), nothing_trapped)
+        let rs = new Step(this.piece, this.to_pos(), invert(this.to), clr_trps)
         rs.apply(board)
     }
 
     toString(pp? : Maybe<boolean>) : string
     {
-        let str = `${this.piece}${this.from}${dirs[this.to]}${this.trapped}`
+        let str = `${this.piece}${p(this.from)}${dirs[this.to]}${this.trapped}`
         if(pp)
             return str
         else
@@ -417,19 +372,19 @@ class Step
 
     descr() : string
     {
-        return `${this.piece} moves from ${this.from} to the ${Dir[this.to]}${this.trapped.descr()}`
+        return `${this.piece} moves from ${p(this.from)} to the ${Dir[this.to]}${this.trapped.descr()}`
     }
 
     to_json() : number
     {
-        let n = this.piece.to_json() << 6 | this.from.index()
+        let n = this.piece.to_json() << 6 | this.from
         return (n << 2 | this.to) << 7 | this.trapped.to_json()
     }
 
     static from_json(n : number) : Step
     {
         let t = Trapped.from_json(n & 127)
-        let p = Pos.from_index(n >> 9 & 63)
+        let p = n >> 9 & 63
         return new Step(Piece.from_json(n >> 15), p, n >> 7 & 3, t)
     }
 }
@@ -453,23 +408,23 @@ class PushPull
     {
         this.from_piece = from_piece
         this.to_piece = to_piece
-        this.from = from.copy()
+        this.from = from
         this.to = to
         this.dest = dest
         this.trapped = trapped
 
         this.step1 = new Step(this.to_piece, this.to_pos(), this.dest, this.trapped[0])
-        this.step2 = new Step(this.from_piece, this.from.copy(), this.to, this.trapped[1])
+        this.step2 = new Step(this.from_piece, this.from, this.to, this.trapped[1])
     }
 
     to_pos() : Pos
     {
-        return this.from.step(this.to)
+        return step(this.from, this.to)
     }
 
     dest_pos() : Pos
     {
-        return this.to_pos().step(this.dest)
+        return step(this.to_pos(), this.dest)
     }
 
     non_violent() : boolean
@@ -571,7 +526,7 @@ class PushPull
     to_json() : number
     {
         let n = this.from_piece.to_json() << 4 | this.to_piece.to_json()
-        n = (n << 6 | this.from.index()) << 4 | this.to << 2 | this.dest
+        n = (n << 6 | this.from) << 4 | this.to << 2 | this.dest
         let [t1, t2] = this.trapped
         return n << 14 | t1.to_json() << 7 | t2.to_json()
     }
@@ -583,7 +538,7 @@ class PushPull
         n = n >>> 14
         let frp = Piece.from_json(n >>> 14 & 15)
         let top = Piece.from_json(n >>> 10 & 15)
-        let from = Pos.from_index(n >>> 4 & 63)
+        let from = n >>> 4 & 63
         let pp = new PushPull(frp, top, from, n >>> 2 & 3, n & 3, ts)
         return pp
     }
@@ -660,17 +615,17 @@ class BoardSetup
     {
         let str = ''
         let pc = new Piece(this.player, 0)
-        for(let [_, p, r] of this.pieces)
+        for(let [_, P, r] of this.pieces)
         {
             pc.rank = r
-            str += `${pc}${p} `
+            str += `${pc}${p(P)} `
         }
         return str.slice(0, -1)
     }
 
     to_json() : any[]
     {
-        let pcs = this.pieces.map(([i, p, r]) => [i, p.index(), r])
+        let pcs = this.pieces.map(([i, p, r]) => [i, p, r])
         return [this.player, pcs]
     }
 
@@ -678,7 +633,7 @@ class BoardSetup
     {
         let f = function(pars : any[]) : [number, Pos, Rank]
         {
-            return [pars[0], Pos.from_index(pars[1]), pars[2]]
+            return [pars[0], pars[1], pars[2]]
         }
         let pc : [number, Pos, Rank][] = l[1].map(f)
         return new BoardSetup(l[0], pc)
@@ -715,7 +670,7 @@ class Board
         {
             if (p.alive)
             {
-                this.board[p.pos.index()] = p
+                this.board[p.pos] = p
             }
         }
     }
@@ -737,7 +692,7 @@ class Board
 
             for(let r of Board.ranknfile)
             {
-                pieces[n] = BoardPiece.basic(new Piece(p, r), Pos.from_index(i))
+                pieces[n] = BoardPiece.basic(new Piece(p, r), i)
                 i += o
                 n++
             }
@@ -750,7 +705,7 @@ class Board
         for(let [i, p, _] of b.pieces)
         {
             let bp = this.pieces[i]
-            bp.pos.clone(p)
+            bp.pos = p
             bp.alive = true
             this.set(p, bp) // No need to recalculate board
         }
@@ -761,23 +716,18 @@ class Board
      * if the position is unoccupied
      * @param p The position of the square to retrieve
      */
-    get(p : Pos) : Maybe<Piece>
-    {
-        return this.get_i(p.index())
-    }
-
-    get_i(i : number) : Maybe<Piece>
+    piece(i : Pos) : Maybe<Piece>
     {
         let s = this.board[i]
-        if(s != undefined)
+        if(s)
             return s.piece
         else
             return s
     }
 
-    get_bp(p : Pos) : Maybe<BoardPiece>
+    get(p : Pos) : Maybe<BoardPiece>
     {
-        return this.board[p.index()]
+        return this.board[p]
     }
 
     /**
@@ -787,13 +737,7 @@ class Board
      */
     set(p : Pos, s : Maybe<BoardPiece>) : void
     {
-        this.set_i(p.index(), s)
-    }
-
-    // Set using direct index
-    set_i(i : number, s : Maybe<BoardPiece>) : void
-    {
-        this.board[i] = s
+        this.board[p] = s
     }
 
     /**
@@ -802,7 +746,7 @@ class Board
      */
     free(p : Pos) : boolean
     {
-        return this.get(p) == undefined
+        return this.board[p] == undefined
     }
 
     /**
@@ -818,8 +762,8 @@ class Board
         if(p instanceof BoardPiece)
             s = p
         else
-            s = this.get_bp(p)
-        if(s != undefined)
+            s = this.get(p)
+        if(s)
         {
             if(this.allies(s.pos, s.piece.player).length > 0)
                 return false
@@ -852,9 +796,9 @@ class Board
             return []
 
         let res : MoveInfo[] = []
-        for(let p of bp.pos.adjacent())
+        for(let p of adj(bp.pos))
         {
-            let np = this.get_bp(p)
+            let np = this.get(p)
             if(np == undefined)
             {
                 if(own_piece)
@@ -863,7 +807,7 @@ class Board
                     if(bp.piece.rank != Rank.Rabbit || to_dir(bp.pos, p) != 2 - turn*2)
                     {
                         let trapped = this.deadly_trap(p, turn)
-                        if(trapped == nothing_trapped)
+                        if(trapped == clr_trps)
                             trapped = this.sole_guardian(bp.pos)
                         res.push({type: 'step', to : p, trapped: trapped})
                     }
@@ -880,13 +824,13 @@ class Board
                 {
                     let opp = opponent(turn)
                     let trapped = this.deadly_trap(p, own_piece ? turn : opp)
-                    if(trapped == nothing_trapped)
+                    if(trapped == clr_trps)
                         trapped = this.sole_guardian(bp.pos)
                     let dest_traps : [Pos, Trapped][] = []
                     for(let dest_pos of empties)
                     {
                         let trapped = this.deadly_trap(dest_pos, own_piece ? opp : turn)
-                        if (trapped == nothing_trapped)
+                        if (trapped == clr_trps)
                             trapped = this.sole_guardian(p)
                         dest_traps.push([dest_pos, trapped])
                     }
@@ -901,14 +845,15 @@ class Board
     {
         for(let p of [Player.White, Player.Black])
         {
-            let win_y : number = [7,0][p]
+            let w : (n : number) => boolean = 
+            [(n : number)=>n > 55,(n : number) => n < 8][p]
 
             let rs = this.rabbits(p)
             if(rs.length == 0)
                 return [opponent(p)]
             for(let r of this.rabbits(p))
             {
-                if(r.pos.y == win_y)
+                if(w(r.pos))
                     return [p]
             }
             if(this.moveables(p).length == 0)
@@ -924,12 +869,12 @@ class Board
     neighbours(p : Pos) : [Pos, Piece][]
     {
         let res : [Pos, Piece][] = []
-        for(let ap of p.adjacent())
+        for(let a of adj(p))
         {
-            let s = this.get(ap)
-            if(s != undefined)
+            let s = this.piece(a)
+            if(s)
             {
-                res.push([ap, s])
+                res.push([a, s])
             }
         }
         return res
@@ -938,8 +883,8 @@ class Board
     free_squares(p : Pos) : Pos[]
     {
         let res = []
-        for(let ap of p.adjacent())
-            if(this.get(ap) == undefined)
+        for(let ap of adj(p))
+            if(this.piece(ap) == undefined)
                 res.push(ap)
 
         return res
@@ -964,14 +909,13 @@ class Board
      */
     deadly_trap(p : Pos, pl : Player) : Trapped
     {
-        let i = p.index()
-        if(traps.indexOf(i) != -1)
+        if(traps.indexOf(p) != -1)
         {
             let a = this.allies(p, pl)
             if(a.length == 1)
                 return new Trapped(p, a[0][1])
         }
-        return nothing_trapped
+        return clr_trps
     }
 
     /**
@@ -982,18 +926,16 @@ class Board
      */
     sole_guardian(p : Pos) : Trapped
     {
-        let i = p.index()
-        let g = this.get_i(i)
-        let t = trap_adj[i]
-        if(t != undefined && g != undefined)
+        let g = this.piece(p)
+        let t = trap_adj[p]
+        if(t && g)
         {
-            let tp = Pos.from_index(t)
-            let s = this.get_i(t)
-            if(s != undefined && s.player == g.player)
-                if(this.allies(tp, g.player).length == 1)
-                    return new Trapped(tp, s)
+            let s = this.piece(t)
+            if(s && s.player == g.player)
+                if(this.allies(t, g.player).length == 1)
+                    return new Trapped(t, s)
         }
-        return nothing_trapped
+        return clr_trps
     }
 
     dead(p : Player) : number[]
@@ -1009,11 +951,10 @@ class Board
      */
     trap(t : Trapped) : void
     {
-        let i = t.pos.index()
-        let tp = <BoardPiece>this.board[i]
+        let tp = <BoardPiece>this.board[t.pos]
         tp.alive = false
         this.dead(t.piece.player).push(this.pieces.indexOf(tp))
-        this.set_i(i, undefined)
+        this.set(t.pos, undefined)
     }
 
     /**
@@ -1093,7 +1034,7 @@ class Board
 
     equals(b : Board) : boolean
     {
-        if (b != undefined)
+        if (b)
         {
             for(let i = 0; i < 64; i++)
             {
@@ -1103,8 +1044,9 @@ class Board
                 if(xor(s1 == u, s2 == u) || s1 != s2 && !(s1).equals(s2))
                      return false
             }
+            return true
         }
-        return b != undefined
+        return false
     }
 
     hash() : number
@@ -1114,9 +1056,9 @@ class Board
         let i = 0
         for(let s of this.board)
         {
-            if(s != undefined)
+            if(s)
             {
-                res += p_factors[i] * s.pos.index() * s.piece.to_json()
+                res += p_factors[i] * s.pos * s.piece.to_json()
                 i = (i+1) % p_factors.length
             }
         }
