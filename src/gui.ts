@@ -503,6 +503,7 @@ let gui_ob =
         markers: undefined,
         moving: false, //Moves of the opponent are playing - prevent clicks
         error: undefined,
+        confirm: undefined,
         sending: false
     },
     // Computed methods
@@ -567,18 +568,27 @@ let gui_ob =
             //@ts-ignore
             this.unmark()
         },
-        end_turn: function () {
+        end_turn: function (override : boolean) {
             //@ts-ignore
             if (!this.sending)
             {
                 //@ts-ignore
-                this.sending = true
-                //@ts-ignore
-                let c: Client = window.c
-                //@ts-ignore
-                let ts: TurnState = this.ts;
-                this.unmark()
-                c.send({ type: Msg.MoveSet, data: ts.moves().map(m => m.to_json()) })
+                if (this.moves_made == 4 || override)
+                {
+                    //@ts-ignore
+                    this.sending = true; this.confirm = undefined
+                    //@ts-ignore
+                    let c: Client = window.c
+                    //@ts-ignore
+                    let ts: TurnState = this.ts;
+                    this.unmark()
+                    c.send({ type: Msg.MoveSet, data: ts.moves().map(m => m.to_json()) })
+                }
+                else
+                {
+                    //@ts-ignore
+                    this.confirm=`You have only used ${this.moves_made} moves. End turn anyway?`
+                }
             }
         },
         unmark()

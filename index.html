@@ -69,12 +69,12 @@
 					<!-- Controls -->
 					<button class="actionbutton fw" v-if="piece_setup && !sent_setup" @click="send_setup">Confirm piece setup</button>
 					<div v-if="your_turn" style="display:flex; flex-direction: row; flex-wrap: wrap;">
-					<button :disabled="moves_made == 0" class="actionbutton"
+					<button :disabled="moves_made == 0" class="actionbutton" style="flex-grow:4"
 						@click="undo(undefined)">Undo</button>
-					<button :disabled="moves_made == 0" class="actionbutton"
-						@click="reset">Reset turn</button>
-					<button class="actionbutton"
-					@click="end_turn" :disabled="!valid_turn" >End turn</button>
+						<button class="actionbutton" style="flex-grow:1"
+						@click="end_turn(false)" :disabled="!valid_turn" >End</button>
+					<button :disabled="moves_made == 0" class="actionbutton" style="flex-grow:4"
+						@click="reset">Reset</button>
 				</div>
 					<!-- Setup and history -->
 					<div class="moves">
@@ -82,6 +82,15 @@
 						<div v-if="gs.black_setup" class="entry b_hist">{{gs.black_setup}}</div>
 						<div v-for="h, i in gs.move_history" class="entry" :class="['w_hist','b_hist'][i%2]">
 							<span v-for="m in h"> {{m.toString()}}</span>
+						</div>
+					</div>
+					<!-- Confirmation message -->
+					<div v-if="confirm != undefined" class="error_screen">
+						<div class="error_msg" style="display:flex; flex-wrap: wrap; background:#160707;">
+							<div class="fw" style="text-align:center">{{confirm}}</div>
+							<div style="height:1em; width:100%"></div>
+							<button class="actionbutton" style="flex-grow:1" @click="confirm = undefined">Cancel</button>
+							<button class="actionbutton" style="flex-grow:1" @click="end_turn(true)">Confirm</button>
 						</div>
 					</div>
 					<!-- Error message -->
