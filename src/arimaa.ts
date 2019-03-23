@@ -1188,6 +1188,7 @@ enum Msg {
     StateSend,
     StateUpdate,
     InvalidMove,
+    Marker,
     Error,
     HardReset
 }

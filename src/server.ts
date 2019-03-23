@@ -410,6 +410,14 @@ class GameSession
                 case Msg.MoveSet:
                     this.handle_move_set(conn, message)
                     break
+                case Msg.Marker:
+                    for (let c of this.conns)
+                        if (conn != c)
+                        {
+                            console.log(`Sending marker update w. pos : ${message.data}`)
+                            this.send(c, Msg.Marker, message.data)
+                        }
+                    break;
                 default:
                     warning(`Received unhandleable message w type: ${Msg[message.type]}`)
             }

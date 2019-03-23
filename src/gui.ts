@@ -464,6 +464,13 @@ class Client
                 this.vm.error = error_msg(err)
                 this.vm.sending=false
                 break
+            case Msg.Marker:
+                if(!this.vm.your_turn)
+                {
+                    console.log("Handling marker update")
+                    let i = msg.data
+                    this.vm.marked = this.ts.current_board.get(i)
+                }
             default:
                 //console.warn(`Unhandled message: ${msg}`)
                 break
@@ -532,6 +539,11 @@ let gui_ob =
         valid_turn: function(){return this.moves_made > 0 && this.moves_made < 5},
     },
     methods : {
+        send: function(t : Msg, d : any)
+        {
+            //@ts-ignore
+            window.c.send({type : t, data : d})
+        },
         //Server related methods
         reconnect: function()
         {
@@ -541,23 +553,19 @@ let gui_ob =
         confirm_choice: function()
         {
             //@ts-ignore
-            let c : Client = window.c
-            //@ts-ignore
-            c.send({type: Msg.SideChoice, data: this.side_choice})
+            this.send(Msg.SideChoice, this.side_choice)
             //@ts-ignore
             this.gs.state = State.Waiting
         },
         send_setup: function()
         {
             //@ts-ignore
-            let c : Client = window.c
-            //@ts-ignore
             let b = this.ts.current_board
             //@ts-ignore
             let gs : GameState = this.gs; let p : Player = this.player
             //@ts-ignore
             let setup = BoardSetup.from_board(this.player, b)
-            c.send({type: Msg.PieceSetup, data: setup.to_json()})
+            this.send(Msg.PieceSetup, setup.to_json())
             //@ts-ignore
             this.sent_setup = true; this.ts.apply(); this.ts.reset()
             if(p == Player.White)
@@ -578,11 +586,9 @@ let gui_ob =
                     //@ts-ignore
                     this.sending = true; this.confirm = undefined
                     //@ts-ignore
-                    let c: Client = window.c
-                    //@ts-ignore
                     let ts: TurnState = this.ts;
                     this.unmark()
-                    c.send({ type: Msg.MoveSet, data: ts.moves().map(m => m.to_json()) })
+                    this.send(Msg.MoveSet, ts.moves().map(m => m.to_json()))
                 }
                 else
                 {
@@ -595,6 +601,7 @@ let gui_ob =
         {
             //@ts-ignore
             this.marked = undefined; this.markers = undefined
+            this.send(Msg.Marker, 64)
         },
         // Piece setup and playing methods
         piece_cb: function(bp : BoardPiece)
@@ -627,6 +634,7 @@ let gui_ob =
                 {
                     //@ts-ignore
                     this.marked = bp
+                    this.send(Msg.Marker, bp.pos)
                     // What do we need from the markers - their position and a callback function
                     let markers = []
                     for(let minf of mi)
@@ -725,7 +733,7 @@ let gui_ob =
                 this.unmark()
             }
             //@ts-ignore
-            else if (this.marked != undefined) // Shuffle time
+            else if (this.marked) // Shuffle time
             {
                 let pos = bp.pos
                 //@ts-ignore
